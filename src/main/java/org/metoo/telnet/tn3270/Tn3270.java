@@ -112,30 +112,16 @@ public class Tn3270 implements TelnetNotificationHandler {
     
     @Override
     public void receivedNegotiation(int negotiation_code, int option_code) {
-        String negotiation = "";
-        switch (negotiation_code) {
-            case RECEIVED_DO:
-                negotiation = "DO";
-                break;
-            case RECEIVED_DONT:
-                negotiation = "DONT";
-                break;
-            case RECEIVED_WILL:
-                negotiation = "WILL";
-                break;
-            case RECEIVED_WONT:
-                negotiation = "WONT";
-                break;
-            case RECEIVED_COMMAND:
-                negotiation = "COMMAND";
-                break;
-        }
+        String negotiation = 
+		switch (negotiation_code) {
+            case RECEIVED_DO -> "DO";
+            case RECEIVED_DONT -> "DONT";
+            case RECEIVED_WILL -> "WILL";
+            case RECEIVED_WONT -> "WONT";
+            default -> "UNKNOWN";
+        };
         
-        // Debug output - uncomment if needed
-        // if (TelnetOption.isValidOption(option_code)) {
-        //     System.out.println("TN3270 Negotiation: " + negotiation + " " + 
-        //                      TelnetOption.getOption(option_code));
-        // }
+//        System.out.println("Telnet Negotiation: Received " + negotiation + " for option code " + option_code);
     }
     
     public void setTerminalType(String terminalType) {

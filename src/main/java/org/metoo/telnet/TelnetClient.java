@@ -263,16 +263,27 @@ public class TelnetClient extends Telnet {
         
         @Override
         public int read(byte[] b, int off, int len) throws IOException {
-            int bytesRead = 0;
-            for (int i = 0; i < len; i++) {
-                int ch = read();
-                if (ch == -1) {
-                    return bytesRead == 0 ? -1 : bytesRead;
-                }
-                b[off + i] = (byte) ch;
-                bytesRead++;
+            if (len == 0) {
+                return 0;
             }
-            return bytesRead;
+            
+            // First ensure we have data in buffer
+            if (bufferPos >= bufferSize) {
+                fillBuffer();
+                if (bufferSize == 0) {
+                    return -1;  // EOF
+                }
+            }
+            
+            // Copy as much as we can from the buffer
+            int available = bufferSize - bufferPos;
+            int bytesToCopy = Math.min(len, available);
+            
+            for (int i = 0; i < bytesToCopy; i++) {
+                b[off + i] = (byte) (buffer[bufferPos++] & 0xFF);
+            }
+            
+            return bytesToCopy;
         }
         
         private void fillBuffer() throws IOException {
