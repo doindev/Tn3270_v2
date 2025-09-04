@@ -92,28 +92,36 @@ public class Telnet {
         _sendByte(TelnetCommand.IAC);
         _sendByte(TelnetCommand.WILL);
         _sendByte(option);
-        output.flush();
+        if (output != null) {
+            output.flush();
+        }
     }
     
     final synchronized void _sendWont(int option) throws IOException {
         _sendByte(TelnetCommand.IAC);
         _sendByte(TelnetCommand.WONT);
         _sendByte(option);
-        output.flush();
+        if (output != null) {
+            output.flush();
+        }
     }
     
     final synchronized void _sendDo(int option) throws IOException {
         _sendByte(TelnetCommand.IAC);
         _sendByte(TelnetCommand.DO);
         _sendByte(option);
-        output.flush();
+        if (output != null) {
+            output.flush();
+        }
     }
     
     final synchronized void _sendDont(int option) throws IOException {
         _sendByte(TelnetCommand.IAC);
         _sendByte(TelnetCommand.DONT);
         _sendByte(option);
-        output.flush();
+        if (output != null) {
+            output.flush();
+        }
     }
     
     final synchronized void _requestWill(int option) throws IOException {
@@ -267,7 +275,9 @@ public class Telnet {
             }
             _sendByte(TelnetCommand.IAC);
             _sendByte(TelnetCommand.SE);
-            output.flush();
+            if (output != null) {
+                output.flush();
+            }
         }
     }
     
