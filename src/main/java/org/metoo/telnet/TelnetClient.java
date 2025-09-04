@@ -14,9 +14,7 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.SSLHandshakeException;
 
 public class TelnetClient extends Telnet {
-    private Socket socket = null;
-    private InputStream input = null;
-    private OutputStream output = null;
+    // Remove duplicate declarations - use parent's socket, input, output fields
     private boolean connected = false;
     private int connectTimeout = 60000;
     private int defaultPort = 23;
@@ -39,21 +37,21 @@ public class TelnetClient extends Telnet {
         if (sslEnabled) {
             try {
                 SSLSocketFactory sslFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-                socket = sslFactory.createSocket();
-                socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
-                ((SSLSocket) socket).startHandshake();
+                super.socket = sslFactory.createSocket();
+                super.socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
+                ((SSLSocket) super.socket).startHandshake();
             } catch (SSLHandshakeException e) {
-                if (socket != null) {
+                if (super.socket != null) {
                     try {
-                        socket.close();
+                        super.socket.close();
                     } catch (IOException ignored) {}
                 }
-                socket = new Socket();
-                socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
+                super.socket = new Socket();
+                super.socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
             }
         } else {
-            socket = new Socket();
-            socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
+            super.socket = new Socket();
+            super.socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
         }
         _connectAction_();
     }
@@ -72,23 +70,25 @@ public class TelnetClient extends Telnet {
     
     @Override
     protected void _connectAction_() throws IOException {
-        input = new BufferedInputStream(socket.getInputStream());
-        output = new BufferedOutputStream(socket.getOutputStream());
+        // Set the parent class's input and output fields
+        super.input = new BufferedInputStream(super.socket.getInputStream());
+        super.output = new BufferedOutputStream(super.socket.getOutputStream());
         connected = true;
         
-        negotiatedInput = new TelnetInputStream(input, this);
-        negotiatedOutput = new TelnetOutputStream(output, this);
+        // Create the negotiated streams using the parent's streams
+        negotiatedInput = new TelnetInputStream(super.input, this);
+        negotiatedOutput = new TelnetOutputStream(super.output, this);
         
         super._connectAction_();
     }
     
     public void disconnect() throws IOException {
-        if (socket != null) {
-            socket.close();
+        if (super.socket != null) {
+            super.socket.close();
         }
-        socket = null;
-        input = null;
-        output = null;
+        super.socket = null;
+        super.input = null;
+        super.output = null;
         connected = false;
         negotiatedInput = null;
         negotiatedOutput = null;
@@ -103,7 +103,7 @@ public class TelnetClient extends Telnet {
     }
     
     public boolean isConnected() {
-        return connected;
+        return connected && super.socket != null && !super.socket.isClosed();
     }
     
     public void setDefaultPort(int port) {
@@ -123,81 +123,81 @@ public class TelnetClient extends Telnet {
     }
     
     public void setSoTimeout(int timeout) throws SocketException {
-        if (socket != null) {
-            socket.setSoTimeout(timeout);
+        if (super.socket != null) {
+            super.socket.setSoTimeout(timeout);
         }
     }
     
     public int getSoTimeout() throws SocketException {
-        if (socket != null) {
-            return socket.getSoTimeout();
+        if (super.socket != null) {
+            return super.socket.getSoTimeout();
         }
         return 0;
     }
     
     public void setTcpNoDelay(boolean on) throws SocketException {
-        if (socket != null) {
-            socket.setTcpNoDelay(on);
+        if (super.socket != null) {
+            super.socket.setTcpNoDelay(on);
         }
     }
     
     public boolean getTcpNoDelay() throws SocketException {
-        if (socket != null) {
-            return socket.getTcpNoDelay();
+        if (super.socket != null) {
+            return super.socket.getTcpNoDelay();
         }
         return false;
     }
     
     public void setKeepAlive(boolean on) throws SocketException {
-        if (socket != null) {
-            socket.setKeepAlive(on);
+        if (super.socket != null) {
+            super.socket.setKeepAlive(on);
         }
     }
     
     public boolean getKeepAlive() throws SocketException {
-        if (socket != null) {
-            return socket.getKeepAlive();
+        if (super.socket != null) {
+            return super.socket.getKeepAlive();
         }
         return false;
     }
     
     public void setSoLinger(boolean on, int val) throws SocketException {
-        if (socket != null) {
-            socket.setSoLinger(on, val);
+        if (super.socket != null) {
+            super.socket.setSoLinger(on, val);
         }
     }
     
     public int getSoLinger() throws SocketException {
-        if (socket != null) {
-            return socket.getSoLinger();
+        if (super.socket != null) {
+            return super.socket.getSoLinger();
         }
         return -1;
     }
     
     public int getLocalPort() {
-        if (socket != null) {
-            return socket.getLocalPort();
+        if (super.socket != null) {
+            return super.socket.getLocalPort();
         }
         return -1;
     }
     
     public InetAddress getLocalAddress() {
-        if (socket != null) {
-            return socket.getLocalAddress();
+        if (super.socket != null) {
+            return super.socket.getLocalAddress();
         }
         return null;
     }
     
     public int getRemotePort() {
-        if (socket != null) {
-            return socket.getPort();
+        if (super.socket != null) {
+            return super.socket.getPort();
         }
         return -1;
     }
     
     public InetAddress getRemoteAddress() {
-        if (socket != null) {
-            return socket.getInetAddress();
+        if (super.socket != null) {
+            return super.socket.getInetAddress();
         }
         return null;
     }

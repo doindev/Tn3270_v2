@@ -176,6 +176,8 @@ public class Telnet {
             } else {
                 _sendWont(option);
                 sentWill[option] = false;
+                System.err.println("WARNING: Telnet negotiation - refusing DO " + 
+                                 TelnetOption.getOption(option) + " (option " + option + ")");
             }
         }
         
@@ -224,6 +226,8 @@ public class Telnet {
             } else {
                 _sendDont(option);
                 sentDo[option] = false;
+                System.err.println("WARNING: Telnet negotiation - refusing WILL " + 
+                                 TelnetOption.getOption(option) + " (option " + option + ")");
             }
         }
         
