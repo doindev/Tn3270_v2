@@ -74,14 +74,14 @@ local.properties
 .project
 
 # JDT-specific (Eclipse Java Development Tools)
-.classpath
+#.classpath
 
 # Eclipse m2e
-.project
-.classpath
+#.project
+#.classpath
 .c9/
 *.launch
-.settings/
+#.settings/
 *.sublime-workspace
 
 # IntelliJ IDEA
