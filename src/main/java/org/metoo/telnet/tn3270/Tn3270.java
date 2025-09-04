@@ -1,19 +1,16 @@
 package org.metoo.telnet.tn3270;
 
-import org.metoo.telnet.TelnetClient;
-import org.metoo.telnet.TelnetNotificationHandler;
-import org.metoo.telnet.TelnetOption;
-import org.metoo.telnet.TelnetOptionHandler;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.metoo.telnet.SimpleOptionHandler;
+import org.metoo.telnet.TelnetClient;
+import org.metoo.telnet.TelnetNotificationHandler;
+import org.metoo.telnet.TelnetOption;
+import org.metoo.telnet.TerminalTypeOptionHandler;
+
 public class Tn3270 implements TelnetNotificationHandler {
-    private static final byte TN3270E_OPTION = 40;
-    private static final byte TERMINAL_TYPE_OPTION = 24;
-    private static final byte BINARY_OPTION = 0;
-    private static final byte END_OF_RECORD_OPTION = 25;
     
     private String hostname;
     private int port;
@@ -40,10 +37,9 @@ public class Tn3270 implements TelnetNotificationHandler {
     public void connect() throws IOException {
         telnetClient.registerNotifHandler(this);
         
-        telnetClient.addOptionHandler(new Tn3270OptionHandler());
-        telnetClient.addOptionHandler(new TerminalTypeOptionHandler());
-        telnetClient.addOptionHandler(new BinaryOptionHandler());
-        telnetClient.addOptionHandler(new EndOfRecordOptionHandler());
+        telnetClient.addOptionHandler(new TerminalTypeOptionHandler(terminalType, false, false, true, false));
+        telnetClient.addOptionHandler(new SimpleOptionHandler(TelnetOption.BINARY, true, true, true, false));
+        telnetClient.addOptionHandler(new SimpleOptionHandler(TelnetOption.END_OF_RECORD, true, true, true, false));
         
         telnetClient.connect(hostname, port);
         
@@ -140,70 +136,6 @@ public class Tn3270 implements TelnetNotificationHandler {
         //     System.out.println("TN3270 Negotiation: " + negotiation + " " + 
         //                      TelnetOption.getOption(option_code));
         // }
-    }
-    
-    private class Tn3270OptionHandler extends TelnetOptionHandler {
-        public Tn3270OptionHandler() {
-            super(TN3270E_OPTION, false, true, false, true);
-        }
-        
-        @Override
-        public int[] answerSubnegotiation(int[] suboptionData, int suboptionLength) {
-            if (suboptionLength > 0 && suboptionData[0] == TN3270E_OPTION) {
-                return new int[] { TN3270E_OPTION, 0x02, 0x07, 0x00, 0x00 };
-            }
-            return null;
-        }
-    }
-    
-    private class TerminalTypeOptionHandler extends TelnetOptionHandler {
-        private static final int TERMINAL_TYPE_IS = 0;
-        private static final int TERMINAL_TYPE_SEND = 1;
-        
-        public TerminalTypeOptionHandler() {
-            super(TERMINAL_TYPE_OPTION, false, true, false, true);
-        }
-        
-        @Override
-        public int[] answerSubnegotiation(int[] suboptionData, int suboptionLength) {
-            if (suboptionLength > 1 && 
-                suboptionData[0] == TERMINAL_TYPE_OPTION &&
-                suboptionData[1] == TERMINAL_TYPE_SEND) {
-                
-                int[] response = new int[terminalType.length() + 2];
-                response[0] = TERMINAL_TYPE_OPTION;
-                response[1] = TERMINAL_TYPE_IS;
-                
-                for (int i = 0; i < terminalType.length(); i++) {
-                    response[i + 2] = terminalType.charAt(i);
-                }
-                
-                return response;
-            }
-            return null;
-        }
-    }
-    
-    private class BinaryOptionHandler extends TelnetOptionHandler {
-        public BinaryOptionHandler() {
-            super(BINARY_OPTION, true, true, true, true);
-        }
-        
-        @Override
-        public int[] answerSubnegotiation(int[] suboptionData, int suboptionLength) {
-            return null;
-        }
-    }
-    
-    private class EndOfRecordOptionHandler extends TelnetOptionHandler {
-        public EndOfRecordOptionHandler() {
-            super(END_OF_RECORD_OPTION, true, true, true, true);
-        }
-        
-        @Override
-        public int[] answerSubnegotiation(int[] suboptionData, int suboptionLength) {
-            return null;
-        }
     }
     
     public void setTerminalType(String terminalType) {
