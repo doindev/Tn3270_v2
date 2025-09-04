@@ -226,6 +226,10 @@ public class TelnetClient extends Telnet {
         this.sslEnabled = sslEnabled;
     }
     
+    public void useSystemProperties(boolean b) {
+        System.setProperty("java.net.useSystemProxies", String.valueOf(b));
+    }
+    
     private class TelnetInputStream extends InputStream {
         private InputStream wrapped;
         private Telnet telnet;
