@@ -37,9 +37,9 @@ public class Tn3270 implements TelnetNotificationHandler {
     public void connect() throws IOException {
         telnetClient.registerNotifHandler(this);
         
-        telnetClient.addOptionHandler(new TerminalTypeOptionHandler(terminalType, false, false, true, false));
-        telnetClient.addOptionHandler(new SimpleOptionHandler(TelnetOption.BINARY, true, true, true, false));
-        telnetClient.addOptionHandler(new SimpleOptionHandler(TelnetOption.END_OF_RECORD, true, true, true, false));
+        telnetClient.addOptionHandler(new TerminalTypeOptionHandler(terminalType, true, true, true, true));
+        telnetClient.addOptionHandler(new SimpleOptionHandler(TelnetOption.BINARY, true, true, true, true));
+        telnetClient.addOptionHandler(new SimpleOptionHandler(TelnetOption.END_OF_RECORD, true, true, true, true));
         
         telnetClient.connect(hostname, port);
         
