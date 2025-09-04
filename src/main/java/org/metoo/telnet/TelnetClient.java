@@ -267,23 +267,49 @@ public class TelnetClient extends Telnet {
                 return 0;
             }
             
-            // First ensure we have data in buffer
-            if (bufferPos >= bufferSize) {
-                fillBuffer();
-                if (bufferSize == 0) {
-                    return -1;  // EOF
+            int totalBytesRead = 0;
+            
+            // Try to fill the byte array as much as possible
+            while (totalBytesRead < len) {
+                // Ensure we have data in buffer
+                if (bufferPos >= bufferSize) {
+                    // If we already have some data, return what we have
+                    if (totalBytesRead > 0) {
+                        break;
+                    }
+                    
+                    // Otherwise, try to fill the buffer
+                    fillBuffer();
+                    if (bufferSize == 0) {
+                        return totalBytesRead == 0 ? -1 : totalBytesRead;  // EOF
+                    }
+                }
+                
+                // Copy as much as we can from the buffer
+                int available = bufferSize - bufferPos;
+                int bytesToCopy = Math.min(len - totalBytesRead, available);
+                
+                for (int i = 0; i < bytesToCopy; i++) {
+                    b[off + totalBytesRead + i] = (byte) (buffer[bufferPos++] & 0xFF);
+                }
+                
+                totalBytesRead += bytesToCopy;
+                
+                // If the buffer is now empty but we haven't filled the byte array,
+                // check if more data is immediately available
+                if (bufferPos >= bufferSize && totalBytesRead < len) {
+                    // Check if more data is available without blocking
+                    if (wrapped.available() > 0) {
+                        // Continue loop to try to fill more
+                        continue;
+                    } else {
+                        // No more data immediately available, return what we have
+                        break;
+                    }
                 }
             }
             
-            // Copy as much as we can from the buffer
-            int available = bufferSize - bufferPos;
-            int bytesToCopy = Math.min(len, available);
-            
-            for (int i = 0; i < bytesToCopy; i++) {
-                b[off + i] = (byte) (buffer[bufferPos++] & 0xFF);
-            }
-            
-            return bytesToCopy;
+            return totalBytesRead;
         }
         
         private void fillBuffer() throws IOException {
