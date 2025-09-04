@@ -140,6 +140,25 @@ public class Screen {
         return this;
     }
     
+    public Screen home() {
+        // Move cursor to the first editable position on the screen
+        int totalPositions = buffer.getRows() * buffer.getCols();
+        
+        // Start from position 0 and look for the first unprotected field
+        for (int position = 0; position < totalPositions; position++) {
+            InputField field = buffer.getFieldAt(position);
+            if (field != null && field.canInput()) {
+                // Found first editable field, set cursor to its start position
+                buffer.setCursorPosition(field.startRow(), field.startColumn());
+                return this;
+            }
+        }
+        
+        // If no editable field found, move to position 1,1
+        buffer.setCursorPosition(1, 1);
+        return this;
+    }
+    
     public Screen insert() {
         buffer.setInsertMode(!buffer.isInsertMode());
         return this;
