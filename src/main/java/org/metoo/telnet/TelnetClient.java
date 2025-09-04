@@ -9,6 +9,9 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.SSLHandshakeException;
 
 public class TelnetClient extends Telnet {
     private Socket socket = null;
@@ -18,6 +21,7 @@ public class TelnetClient extends Telnet {
     private int connectTimeout = 60000;
     private int defaultPort = 23;
     private String terminalType = "VT100";
+    private boolean sslEnabled = true;
     
     private InputStream negotiatedInput = null;
     private OutputStream negotiatedOutput = null;
@@ -32,8 +36,25 @@ public class TelnetClient extends Telnet {
     }
     
     public void connect(InetAddress host, int port) throws IOException {
-        socket = new Socket();
-        socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
+        if (sslEnabled) {
+            try {
+                SSLSocketFactory sslFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+                socket = sslFactory.createSocket();
+                socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
+                ((SSLSocket) socket).startHandshake();
+            } catch (SSLHandshakeException e) {
+                if (socket != null) {
+                    try {
+                        socket.close();
+                    } catch (IOException ignored) {}
+                }
+                socket = new Socket();
+                socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
+            }
+        } else {
+            socket = new Socket();
+            socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
+        }
         _connectAction_();
     }
     
@@ -195,6 +216,14 @@ public class TelnetClient extends Telnet {
     
     public String getTerminalType() {
         return terminalType;
+    }
+    
+    public boolean isSslEnabled() {
+        return sslEnabled;
+    }
+    
+    public void setSslEnabled(boolean sslEnabled) {
+        this.sslEnabled = sslEnabled;
     }
     
     private class TelnetInputStream extends InputStream {
