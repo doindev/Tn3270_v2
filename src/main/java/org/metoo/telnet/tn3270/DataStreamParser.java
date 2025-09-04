@@ -97,6 +97,16 @@ public class DataStreamParser {
     }
     
     public void processWriteControlCharacter(byte command, byte wcc) {
+    	String cmd = switch (command) {
+    	case CMD_WRITE -> "CMD_WRITE";
+    	case CMD_ERASE_WRITE -> "CMD_ERASE_WRITE";
+    	case CMD_ERASE_WRITE_ALTERNATE -> "CMD_ERASE_WRITE_ALTERNATE";
+    	case CMD_ERASE_ALL_UNPROTECTED -> "CMD_ERASE_ALL_UNPROTECTED";
+    	default -> "UNKNOWN";
+    	};
+    	
+    	System.out.println(command + " " + cmd);
+    	System.out.println(wcc + " wcc"); 	
         if ((wcc & WCC_RESET_MDT) != 0) {
             resetModifiedDataTags(null, 0);
         }
@@ -165,24 +175,34 @@ public class DataStreamParser {
         
         switch (order) {
             case ORDER_SET_BUFFER_ADDRESS:
+            	System.out.println(order + " ORD_SBA");
                 return processSetBufferAddress(data, pos);
             case ORDER_START_FIELD:
+            	System.out.println(order + " ORD_SF");
                 return processStartField(data, pos);
             case ORDER_START_FIELD_EXTENDED:
+            	System.out.println(order + " ORD_SFE");
                 return processStartFieldExtended(data, pos);
             case ORDER_SET_ATTRIBUTE:
+            	System.out.println(order + " ORD_SA");
                 return processSetAttribute(data, pos);
             case ORDER_INSERT_CURSOR:
+            	System.out.println(order + " ORD_IC");
                 return processInsertCursor(data, pos);
             case ORDER_PROGRAM_TAB:
+            	System.out.println(order + " ORD_PT");
                 return processProgramTab(data, pos);
             case ORDER_REPEAT_TO_ADDRESS:
+            	System.out.println(order + " ORD_RA");
                 return processRepeatToAddress(data, pos);
             case ORDER_ERASE_UNPROTECTED_TO_ADDRESS:
+            	System.out.println(order + " ORD_EUA");
                 return processEraseUnprotectedToAddress(data, pos);
             case ORDER_MODIFY_FIELD:
+            	System.out.println(order + " ORD_MF");
                 return processModifyField(data, pos);
             case ORDER_GRAPHICS_ESCAPE:
+            	System.out.println(order + " ORD_GE");
                 return processGraphicsEscape(data, pos);
             default:
                 return pos;
@@ -355,6 +375,8 @@ public class DataStreamParser {
             int ebcdic = data[pos++] & 0xFF;
             char ch = ebcdicToAscii(ebcdic);
             
+            System.out.println(ebcdic + " " + ch);
+            
             // Debug output - uncomment if needed
             // System.out.printf("Processing character: EBCDIC=0x%02X ASCII='%c' at position %d%n", 
             //                 ebcdic, ch, buffer.getCursorAddress());
@@ -370,6 +392,10 @@ public class DataStreamParser {
         int l = low & 0xFF;
         
         int address = ((h & 0x3F) << 6) | (l & 0x3F);
+        
+        System.out.println("high " + h);
+        System.out.println(low + " low");
+        System.out.println(address + " final pos");
         
         return address;
     }
