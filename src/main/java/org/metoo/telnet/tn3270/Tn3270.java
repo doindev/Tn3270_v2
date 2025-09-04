@@ -61,26 +61,27 @@ public class Tn3270 implements TelnetNotificationHandler {
         readerThread = new Thread(() -> {
             byte[] buffer = new byte[4096];
             try {
-                System.out.println("TN3270: Reader thread started");
+                // Debug output - uncomment if needed
+                // System.out.println("TN3270: Reader thread started");
                 while (connected && inputStream != null) {
                     int bytesRead = inputStream.read(buffer);
                     if (bytesRead > 0) {
-                        System.out.println("TN3270: Read " + bytesRead + " bytes from input stream");
+                        // System.out.println("TN3270: Read " + bytesRead + " bytes from input stream");
                         byte[] data = new byte[bytesRead];
                         System.arraycopy(buffer, 0, data, 0, bytesRead);
                         parser.parse(data);
                     } else if (bytesRead < 0) {
-                        System.out.println("TN3270: End of stream reached");
+                        // System.out.println("TN3270: End of stream reached");
                         break;
                     }
                 }
             } catch (IOException e) {
                 if (connected) {
-                    System.err.println("TN3270: IOException in reader thread");
+                    // System.err.println("TN3270: IOException in reader thread");
                     e.printStackTrace();
                 }
             }
-            System.out.println("TN3270: Reader thread ended");
+            // System.out.println("TN3270: Reader thread ended");
         });
         readerThread.setDaemon(true);
         readerThread.start();
@@ -134,10 +135,11 @@ public class Tn3270 implements TelnetNotificationHandler {
                 break;
         }
         
-        if (TelnetOption.isValidOption(option_code)) {
-            System.out.println("TN3270 Negotiation: " + negotiation + " " + 
-                             TelnetOption.getOption(option_code));
-        }
+        // Debug output - uncomment if needed
+        // if (TelnetOption.isValidOption(option_code)) {
+        //     System.out.println("TN3270 Negotiation: " + negotiation + " " + 
+        //                      TelnetOption.getOption(option_code));
+        // }
     }
     
     private class Tn3270OptionHandler extends TelnetOptionHandler {

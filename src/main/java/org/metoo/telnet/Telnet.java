@@ -32,9 +32,9 @@ public class Telnet {
     private TelnetNotificationHandler notifHandler = null;
     private List<TelnetOptionHandler> optionHandlers = new ArrayList<TelnetOptionHandler>();
     
-    private Socket socket = null;
-    private BufferedInputStream input = null;
-    private BufferedOutputStream output = null;
+    protected Socket socket = null;
+    protected BufferedInputStream input = null;
+    protected BufferedOutputStream output = null;
     
     public Telnet() {
         doResponse = new boolean[256];
@@ -92,24 +92,28 @@ public class Telnet {
         _sendByte(TelnetCommand.IAC);
         _sendByte(TelnetCommand.WILL);
         _sendByte(option);
+        output.flush();
     }
     
     final synchronized void _sendWont(int option) throws IOException {
         _sendByte(TelnetCommand.IAC);
         _sendByte(TelnetCommand.WONT);
         _sendByte(option);
+        output.flush();
     }
     
     final synchronized void _sendDo(int option) throws IOException {
         _sendByte(TelnetCommand.IAC);
         _sendByte(TelnetCommand.DO);
         _sendByte(option);
+        output.flush();
     }
     
     final synchronized void _sendDont(int option) throws IOException {
         _sendByte(TelnetCommand.IAC);
         _sendByte(TelnetCommand.DONT);
         _sendByte(option);
+        output.flush();
     }
     
     final synchronized void _requestWill(int option) throws IOException {
@@ -263,6 +267,7 @@ public class Telnet {
             }
             _sendByte(TelnetCommand.IAC);
             _sendByte(TelnetCommand.SE);
+            output.flush();
         }
     }
     

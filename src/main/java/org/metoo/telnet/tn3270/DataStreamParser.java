@@ -36,11 +36,12 @@ public class DataStreamParser {
             return;
         }
         
-        System.out.println("DataStreamParser: Received " + data.length + " bytes");
-        for (int i = 0; i < Math.min(data.length, 20); i++) {
-            System.out.printf("%02X ", data[i] & 0xFF);
-        }
-        System.out.println();
+        // Debug output - uncomment if needed
+        // System.out.println("DataStreamParser: Received " + data.length + " bytes");
+        // for (int i = 0; i < Math.min(data.length, 20); i++) {
+        //     System.out.printf("%02X ", data[i] & 0xFF);
+        // }
+        // System.out.println();
         
         int pos = 0;
         
@@ -354,8 +355,9 @@ public class DataStreamParser {
             int ebcdic = data[pos++] & 0xFF;
             char ch = ebcdicToAscii(ebcdic);
             
-            System.out.printf("Processing character: EBCDIC=0x%02X ASCII='%c' at position %d%n", 
-                            ebcdic, ch, buffer.getCursorAddress());
+            // Debug output - uncomment if needed
+            // System.out.printf("Processing character: EBCDIC=0x%02X ASCII='%c' at position %d%n", 
+            //                 ebcdic, ch, buffer.getCursorAddress());
             
             buffer.setChar(buffer.getCursorAddress(), ch);
             buffer.moveCursorRight();
