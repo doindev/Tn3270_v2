@@ -1,0 +1,373 @@
+package org.metoo.telnet;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+
+public class TelnetClient extends Telnet {
+    private Socket socket = null;
+    private InputStream input = null;
+    private OutputStream output = null;
+    private boolean connected = false;
+    private int connectTimeout = 60000;
+    private int defaultPort = 23;
+    private String terminalType = "VT100";
+    
+    private InputStream negotiatedInput = null;
+    private OutputStream negotiatedOutput = null;
+    
+    public TelnetClient() {
+        super();
+    }
+    
+    public TelnetClient(String termtype) {
+        super();
+        terminalType = termtype;
+    }
+    
+    public void connect(InetAddress host, int port) throws IOException {
+        socket = new Socket();
+        socket.connect(new java.net.InetSocketAddress(host, port), connectTimeout);
+        _connectAction_();
+    }
+    
+    public void connect(InetAddress host) throws IOException {
+        connect(host, defaultPort);
+    }
+    
+    public void connect(String hostname, int port) throws UnknownHostException, IOException {
+        connect(InetAddress.getByName(hostname), port);
+    }
+    
+    public void connect(String hostname) throws UnknownHostException, IOException {
+        connect(hostname, defaultPort);
+    }
+    
+    @Override
+    protected void _connectAction_() throws IOException {
+        input = new BufferedInputStream(socket.getInputStream());
+        output = new BufferedOutputStream(socket.getOutputStream());
+        connected = true;
+        
+        negotiatedInput = new TelnetInputStream(input, this);
+        negotiatedOutput = new TelnetOutputStream(output, this);
+        
+        super._connectAction_();
+    }
+    
+    public void disconnect() throws IOException {
+        if (socket != null) {
+            socket.close();
+        }
+        socket = null;
+        input = null;
+        output = null;
+        connected = false;
+        negotiatedInput = null;
+        negotiatedOutput = null;
+    }
+    
+    public InputStream getInputStream() {
+        return negotiatedInput;
+    }
+    
+    public OutputStream getOutputStream() {
+        return negotiatedOutput;
+    }
+    
+    public boolean isConnected() {
+        return connected;
+    }
+    
+    public void setDefaultPort(int port) {
+        defaultPort = port;
+    }
+    
+    public int getDefaultPort() {
+        return defaultPort;
+    }
+    
+    public void setConnectTimeout(int timeout) {
+        connectTimeout = timeout;
+    }
+    
+    public int getConnectTimeout() {
+        return connectTimeout;
+    }
+    
+    public void setSoTimeout(int timeout) throws SocketException {
+        if (socket != null) {
+            socket.setSoTimeout(timeout);
+        }
+    }
+    
+    public int getSoTimeout() throws SocketException {
+        if (socket != null) {
+            return socket.getSoTimeout();
+        }
+        return 0;
+    }
+    
+    public void setTcpNoDelay(boolean on) throws SocketException {
+        if (socket != null) {
+            socket.setTcpNoDelay(on);
+        }
+    }
+    
+    public boolean getTcpNoDelay() throws SocketException {
+        if (socket != null) {
+            return socket.getTcpNoDelay();
+        }
+        return false;
+    }
+    
+    public void setKeepAlive(boolean on) throws SocketException {
+        if (socket != null) {
+            socket.setKeepAlive(on);
+        }
+    }
+    
+    public boolean getKeepAlive() throws SocketException {
+        if (socket != null) {
+            return socket.getKeepAlive();
+        }
+        return false;
+    }
+    
+    public void setSoLinger(boolean on, int val) throws SocketException {
+        if (socket != null) {
+            socket.setSoLinger(on, val);
+        }
+    }
+    
+    public int getSoLinger() throws SocketException {
+        if (socket != null) {
+            return socket.getSoLinger();
+        }
+        return -1;
+    }
+    
+    public int getLocalPort() {
+        if (socket != null) {
+            return socket.getLocalPort();
+        }
+        return -1;
+    }
+    
+    public InetAddress getLocalAddress() {
+        if (socket != null) {
+            return socket.getLocalAddress();
+        }
+        return null;
+    }
+    
+    public int getRemotePort() {
+        if (socket != null) {
+            return socket.getPort();
+        }
+        return -1;
+    }
+    
+    public InetAddress getRemoteAddress() {
+        if (socket != null) {
+            return socket.getInetAddress();
+        }
+        return null;
+    }
+    
+    public void sendAYT(int timeout) throws IOException {
+        _sendCommand(TelnetCommand.AYT);
+    }
+    
+    public void sendCommand(byte command) throws IOException {
+        _sendCommand(command);
+    }
+    
+    public void setTerminalType(String type) {
+        terminalType = type;
+    }
+    
+    public String getTerminalType() {
+        return terminalType;
+    }
+    
+    private class TelnetInputStream extends InputStream {
+        private InputStream wrapped;
+        private Telnet telnet;
+        private int[] buffer = new int[2048];
+        private int bufferPos = 0;
+        private int bufferSize = 0;
+        private boolean iacMode = false;
+        private boolean sbMode = false;
+        private int command = 0;
+        
+        public TelnetInputStream(InputStream is, Telnet tn) {
+            wrapped = is;
+            telnet = tn;
+        }
+        
+        @Override
+        public int read() throws IOException {
+            while (bufferPos >= bufferSize) {
+                fillBuffer();
+                if (bufferSize == 0) {
+                    return -1;
+                }
+            }
+            return buffer[bufferPos++] & 0xFF;
+        }
+        
+        @Override
+        public int read(byte[] b) throws IOException {
+            return read(b, 0, b.length);
+        }
+        
+        @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            int bytesRead = 0;
+            for (int i = 0; i < len; i++) {
+                int ch = read();
+                if (ch == -1) {
+                    return bytesRead == 0 ? -1 : bytesRead;
+                }
+                b[off + i] = (byte) ch;
+                bytesRead++;
+            }
+            return bytesRead;
+        }
+        
+        private void fillBuffer() throws IOException {
+            bufferPos = 0;
+            bufferSize = 0;
+            
+            int ch;
+            while (bufferSize < buffer.length && (ch = wrapped.read()) != -1) {
+                if (iacMode) {
+                    if (command == 0) {
+                        switch (ch) {
+                            case TelnetCommand.WILL:
+                            case TelnetCommand.WONT:
+                            case TelnetCommand.DO:
+                            case TelnetCommand.DONT:
+                            case TelnetCommand.SB:
+                                command = ch;
+                                break;
+                            case TelnetCommand.IAC:
+                                buffer[bufferSize++] = ch;
+                                iacMode = false;
+                                break;
+                            default:
+                                telnet._processCommand(ch);
+                                iacMode = false;
+                                break;
+                        }
+                    } else {
+                        switch (command) {
+                            case TelnetCommand.WILL:
+                                telnet._processWill(ch);
+                                break;
+                            case TelnetCommand.WONT:
+                                telnet._processWont(ch);
+                                break;
+                            case TelnetCommand.DO:
+                                telnet._processDo(ch);
+                                break;
+                            case TelnetCommand.DONT:
+                                telnet._processDont(ch);
+                                break;
+                            case TelnetCommand.SB:
+                                sbMode = true;
+                                subnegotiationCount = 0;
+                                subnegotiationBuffer[subnegotiationCount++] = ch;
+                                break;
+                        }
+                        command = 0;
+                        iacMode = false;
+                    }
+                } else if (sbMode) {
+                    if (ch == TelnetCommand.IAC) {
+                        int next = wrapped.read();
+                        if (next == TelnetCommand.SE) {
+                            telnet._processSuboption(subnegotiationBuffer, subnegotiationCount);
+                            sbMode = false;
+                        } else if (next == TelnetCommand.IAC) {
+                            if (subnegotiationCount < subnegotiationBuffer.length) {
+                                subnegotiationBuffer[subnegotiationCount++] = ch;
+                            }
+                        }
+                    } else {
+                        if (subnegotiationCount < subnegotiationBuffer.length) {
+                            subnegotiationBuffer[subnegotiationCount++] = ch;
+                        }
+                    }
+                } else if (ch == TelnetCommand.IAC) {
+                    iacMode = true;
+                } else {
+                    buffer[bufferSize++] = ch;
+                }
+                
+                if (bufferSize > 0 && !iacMode && !sbMode) {
+                    break;
+                }
+            }
+        }
+        
+        @Override
+        public int available() throws IOException {
+            return (bufferSize - bufferPos) + wrapped.available();
+        }
+        
+        @Override
+        public void close() throws IOException {
+            wrapped.close();
+        }
+    }
+    
+    private class TelnetOutputStream extends OutputStream {
+        private OutputStream wrapped;
+        private Telnet telnet;
+        
+        public TelnetOutputStream(OutputStream os, Telnet tn) {
+            wrapped = os;
+            telnet = tn;
+        }
+        
+        @Override
+        public void write(int b) throws IOException {
+            if (b == TelnetCommand.IAC) {
+                wrapped.write(TelnetCommand.IAC);
+                wrapped.write(TelnetCommand.IAC);
+            } else {
+                wrapped.write(b);
+            }
+        }
+        
+        @Override
+        public void write(byte[] b) throws IOException {
+            write(b, 0, b.length);
+        }
+        
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            for (int i = 0; i < len; i++) {
+                write(b[off + i] & 0xFF);
+            }
+        }
+        
+        @Override
+        public void flush() throws IOException {
+            wrapped.flush();
+        }
+        
+        @Override
+        public void close() throws IOException {
+            wrapped.close();
+        }
+    }
+}
