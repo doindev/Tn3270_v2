@@ -173,8 +173,11 @@ public class TN3270Example {
             screen.enter();
             Thread.sleep(1000);
             
-            // Enter credentials at specific positions
-            screen.putString(10, 20, "USERNAME");
+            // Move to first editable field
+            screen.home();
+            
+            // Enter credentials
+            screen.putString("USERNAME");
             screen.tab();
             screen.putString("PASSWORD");
             
@@ -274,7 +277,7 @@ public class InteractiveTN3270 {
             
             System.out.println("Connected to mainframe. Commands:");
             System.out.println("  enter, clear, pf1-pf12, pa1-pa3");
-            System.out.println("  text <string>, show, quit");
+            System.out.println("  text <string>, show, home, quit");
             
             boolean running = true;
             while (running && tn3270.isConnected()) {
@@ -315,6 +318,10 @@ public class InteractiveTN3270 {
                             break;
                         case "show":
                             System.out.println("\n" + screen.getString() + "\n");
+                            break;
+                        case "home":
+                            screen.home();
+                            System.out.println("Moved to first editable field");
                             break;
                         case "quit":
                         case "exit":
@@ -367,6 +374,7 @@ public class InteractiveTN3270 {
 - `pa1()`, `pa2()`, `pa3()` - Program attention keys
 - `up()`, `down()`, `left()`, `right()` - Cursor movement
 - `tab()`, `tab(boolean shift)` - Field navigation
+- `home()` - Move cursor to first editable field
 
 #### Data Entry:
 - `putString(String text)` - Enter text at cursor

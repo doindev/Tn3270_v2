@@ -61,21 +61,26 @@ public class Tn3270 implements TelnetNotificationHandler {
         readerThread = new Thread(() -> {
             byte[] buffer = new byte[4096];
             try {
+                System.out.println("TN3270: Reader thread started");
                 while (connected && inputStream != null) {
                     int bytesRead = inputStream.read(buffer);
                     if (bytesRead > 0) {
+                        System.out.println("TN3270: Read " + bytesRead + " bytes from input stream");
                         byte[] data = new byte[bytesRead];
                         System.arraycopy(buffer, 0, data, 0, bytesRead);
                         parser.parse(data);
                     } else if (bytesRead < 0) {
+                        System.out.println("TN3270: End of stream reached");
                         break;
                     }
                 }
             } catch (IOException e) {
                 if (connected) {
+                    System.err.println("TN3270: IOException in reader thread");
                     e.printStackTrace();
                 }
             }
+            System.out.println("TN3270: Reader thread ended");
         });
         readerThread.setDaemon(true);
         readerThread.start();

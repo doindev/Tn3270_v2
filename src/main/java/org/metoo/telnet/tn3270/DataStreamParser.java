@@ -32,19 +32,35 @@ public class DataStreamParser {
     }
     
     public void parse(byte[] data) {
-        if (data == null || data.length < 2) {
+        if (data == null || data.length == 0) {
             return;
         }
         
-        int pos = 0;
-        byte command = data[pos++];
+        System.out.println("DataStreamParser: Received " + data.length + " bytes");
+        for (int i = 0; i < Math.min(data.length, 20); i++) {
+            System.out.printf("%02X ", data[i] & 0xFF);
+        }
+        System.out.println();
         
-        if (isWriteCommand(command)) {
-            byte wcc = data[pos++];
-            processWriteControlCharacter(command, wcc);
+        int pos = 0;
+        
+        // Check if first byte is a valid command
+        if (data.length >= 2 && isCommand(data[pos])) {
+            byte command = data[pos++];
+            
+            if (isWriteCommand(command)) {
+                if (pos < data.length) {
+                    byte wcc = data[pos++];
+                    processWriteControlCharacter(command, wcc);
+                    processOrders(data, pos);
+                }
+            } else {
+                processCommand(command, data, pos);
+            }
+        } else {
+            // If not a command, might be raw 3270 data stream or text
+            // Try to process as orders/text directly
             processOrders(data, pos);
-        } else if (isCommand(command)) {
-            processCommand(command, data, pos);
         }
     }
     
@@ -335,11 +351,11 @@ public class DataStreamParser {
     
     public int processCharacter(byte[] data, int pos) {
         if (pos < data.length) {
-            char ch = (char) (data[pos++] & 0xFF);
+            int ebcdic = data[pos++] & 0xFF;
+            char ch = ebcdicToAscii(ebcdic);
             
-            if (ch >= 0x40 && ch <= 0xFE) {
-                ch = ebcdicToAscii(ch);
-            }
+            System.out.printf("Processing character: EBCDIC=0x%02X ASCII='%c' at position %d%n", 
+                            ebcdic, ch, buffer.getCursorAddress());
             
             buffer.setChar(buffer.getCursorAddress(), ch);
             buffer.moveCursorRight();
@@ -363,36 +379,111 @@ public class DataStreamParser {
     }
     
     private char ebcdicToAscii(int ebcdic) {
-        char[] conversionTable = {
-            ' ', ' ', ' ', ' ', ' ', '\t', ' ', ' ',
-            ' ', ' ', ' ', '\n', '\f', '\r', ' ', ' ',
-            ' ', ' ', ' ', ' ', ' ', '\n', '\b', ' ',
-            ' ', ' ', ' ', '\033', ' ', ' ', ' ', ' ',
-            ' ', ' ', ' ', ' ', ' ', '\n', ' ', ' ',
-            ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-            ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-            ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-            ' ', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
-            'h', 'i', ' ', '.', '<', '(', '+', '|',
-            '&', 'j', 'k', 'l', 'm', 'n', 'o', 'p',
-            'q', 'r', '!', '$', '*', ')', ';', '~',
-            '-', '/', 's', 't', 'u', 'v', 'w', 'x',
-            'y', 'z', '^', ',', '%', '_', '>', '?',
-            ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-            ' ', '`', ':', '#', '@', '\'', '=', '"',
-            ' ', 'A', 'B', 'C', 'D', 'E', 'F', 'G',
-            'H', 'I', ' ', ' ', ' ', ' ', ' ', ' ',
-            ' ', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-            'Q', 'R', ' ', ' ', ' ', ' ', ' ', ' ',
-            '\\', ' ', 'S', 'T', 'U', 'V', 'W', 'X',
-            'Y', 'Z', ' ', ' ', ' ', ' ', ' ', ' ',
-            '0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', ' ', ' ', ' ', ' ', ' ', ' '
-        };
+        // Full EBCDIC to ASCII conversion table
+        char[] conversionTable = new char[256];
         
-        if (ebcdic >= 0x40 && ebcdic <= 0xFE) {
-            return conversionTable[ebcdic - 0x40];
+        // Initialize with spaces
+        for (int i = 0; i < 256; i++) {
+            conversionTable[i] = ' ';
         }
-        return (char) ebcdic;
+        
+        // Common EBCDIC to ASCII mappings
+        conversionTable[0x00] = '\0';
+        conversionTable[0x40] = ' ';
+        conversionTable[0x4B] = '.';
+        conversionTable[0x4C] = '<';
+        conversionTable[0x4D] = '(';
+        conversionTable[0x4E] = '+';
+        conversionTable[0x4F] = '|';
+        conversionTable[0x50] = '&';
+        conversionTable[0x5A] = '!';
+        conversionTable[0x5B] = '$';
+        conversionTable[0x5C] = '*';
+        conversionTable[0x5D] = ')';
+        conversionTable[0x5E] = ';';
+        conversionTable[0x5F] = '~';
+        conversionTable[0x60] = '-';
+        conversionTable[0x61] = '/';
+        conversionTable[0x6B] = ',';
+        conversionTable[0x6C] = '%';
+        conversionTable[0x6D] = '_';
+        conversionTable[0x6E] = '>';
+        conversionTable[0x6F] = '?';
+        conversionTable[0x79] = '`';
+        conversionTable[0x7A] = ':';
+        conversionTable[0x7B] = '#';
+        conversionTable[0x7C] = '@';
+        conversionTable[0x7D] = '\'';
+        conversionTable[0x7E] = '=';
+        conversionTable[0x7F] = '"';
+        
+        // Letters
+        conversionTable[0x81] = 'a';
+        conversionTable[0x82] = 'b';
+        conversionTable[0x83] = 'c';
+        conversionTable[0x84] = 'd';
+        conversionTable[0x85] = 'e';
+        conversionTable[0x86] = 'f';
+        conversionTable[0x87] = 'g';
+        conversionTable[0x88] = 'h';
+        conversionTable[0x89] = 'i';
+        conversionTable[0x91] = 'j';
+        conversionTable[0x92] = 'k';
+        conversionTable[0x93] = 'l';
+        conversionTable[0x94] = 'm';
+        conversionTable[0x95] = 'n';
+        conversionTable[0x96] = 'o';
+        conversionTable[0x97] = 'p';
+        conversionTable[0x98] = 'q';
+        conversionTable[0x99] = 'r';
+        conversionTable[0xA2] = 's';
+        conversionTable[0xA3] = 't';
+        conversionTable[0xA4] = 'u';
+        conversionTable[0xA5] = 'v';
+        conversionTable[0xA6] = 'w';
+        conversionTable[0xA7] = 'x';
+        conversionTable[0xA8] = 'y';
+        conversionTable[0xA9] = 'z';
+        
+        conversionTable[0xC1] = 'A';
+        conversionTable[0xC2] = 'B';
+        conversionTable[0xC3] = 'C';
+        conversionTable[0xC4] = 'D';
+        conversionTable[0xC5] = 'E';
+        conversionTable[0xC6] = 'F';
+        conversionTable[0xC7] = 'G';
+        conversionTable[0xC8] = 'H';
+        conversionTable[0xC9] = 'I';
+        conversionTable[0xD1] = 'J';
+        conversionTable[0xD2] = 'K';
+        conversionTable[0xD3] = 'L';
+        conversionTable[0xD4] = 'M';
+        conversionTable[0xD5] = 'N';
+        conversionTable[0xD6] = 'O';
+        conversionTable[0xD7] = 'P';
+        conversionTable[0xD8] = 'Q';
+        conversionTable[0xD9] = 'R';
+        conversionTable[0xE2] = 'S';
+        conversionTable[0xE3] = 'T';
+        conversionTable[0xE4] = 'U';
+        conversionTable[0xE5] = 'V';
+        conversionTable[0xE6] = 'W';
+        conversionTable[0xE7] = 'X';
+        conversionTable[0xE8] = 'Y';
+        conversionTable[0xE9] = 'Z';
+        
+        // Numbers
+        conversionTable[0xF0] = '0';
+        conversionTable[0xF1] = '1';
+        conversionTable[0xF2] = '2';
+        conversionTable[0xF3] = '3';
+        conversionTable[0xF4] = '4';
+        conversionTable[0xF5] = '5';
+        conversionTable[0xF6] = '6';
+        conversionTable[0xF7] = '7';
+        conversionTable[0xF8] = '8';
+        conversionTable[0xF9] = '9';
+        
+        return conversionTable[ebcdic & 0xFF];
     }
 }

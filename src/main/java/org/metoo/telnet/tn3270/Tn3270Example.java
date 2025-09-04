@@ -48,7 +48,7 @@ public class Tn3270Example {
             boolean running = true;
             
             while (running && tn3270.isConnected()) {
-                System.out.println("\nCommands: enter, pf1-pf12, clear, quit, text <string>, show");
+                System.out.println("\nCommands: enter, pf1-pf12, clear, quit, text <string>, show, debug");
                 System.out.print("> ");
                 String input = scanner.nextLine().trim();
                 
@@ -131,6 +131,16 @@ public class Tn3270Example {
                             break;
                         case "right":
                             screen.right();
+                            break;
+                        case "debug":
+                            System.out.println("Debug: Screen buffer content:");
+                            for (int row = 1; row <= 24; row++) {
+                                String line = screen.getString(row);
+                                System.out.printf("Row %2d: [%s]%n", row, line);
+                            }
+                            System.out.println("Cursor: Row=" + screen.getBuffer().getCursorRow() + 
+                                             ", Col=" + screen.getBuffer().getCursorColumn());
+                            System.out.println("Fields: " + screen.getFields().length);
                             break;
                         default:
                             System.out.println("Unknown command: " + command);
