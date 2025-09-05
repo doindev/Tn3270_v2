@@ -752,27 +752,15 @@ public class DataStreamParser {
         int ch = stream.read();
         if (ch != -1) {
             char displayChar = ebcdicToAscii((byte) ch);
+            
+            System.out.println(ch + " " + displayChar);
+            
             int row = (buffer.getCursorAddress() / buffer.getCols()) + 1;
             int col = (buffer.getCursorAddress() % buffer.getCols()) + 1;
             
             buffer.setChar(row, col, displayChar);
             buffer.moveCursorRight();
         }
-    }
-    
-    private int findNextFieldStart(int currentPosition) {
-        int totalPositions = buffer.getRows() * buffer.getCols();
-        int nextPosition = (currentPosition + 1) % totalPositions;
-        
-        while (nextPosition != currentPosition) {
-            if (buffer.getAttribute((nextPosition / buffer.getCols()) + 1,
-                                   (nextPosition % buffer.getCols()) + 1) != null) {
-                return nextPosition;
-            }
-            nextPosition = (nextPosition + 1) % totalPositions;
-        }
-        
-        return currentPosition;
     }
     
     public int decodeAddress(byte high, byte low) {
