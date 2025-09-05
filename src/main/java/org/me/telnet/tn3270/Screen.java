@@ -155,7 +155,7 @@ public class Screen {
         }
         
         // If no editable field found, move to position 1,1
-        buffer.setCursorPosition(1, 1);
+        buffer.setCursorPosition(0, 0);
         return this;
     }
     
@@ -351,8 +351,8 @@ public class Screen {
         
         for (int i = 0; i < length; i++) {
             int pos = cursorPosition + i;
-            int row = (pos / totalCols) + 1;
-            int col = (pos % totalCols) + 1;
+            int row = (pos / totalCols);
+            int col = (pos % totalCols);
             
             if (row > buffer.getRows()) {
                 break;
@@ -365,7 +365,7 @@ public class Screen {
     }
     
     public String getString(int row, int column, int length) {
-        int cursorPosition = (row - 1) * buffer.getCols() + (column - 1);
+        int cursorPosition = row * buffer.getCols() + column;
         return getString(cursorPosition, length);
     }
     

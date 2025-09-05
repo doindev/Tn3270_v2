@@ -46,8 +46,8 @@ public class ScreenBuffer {
             }
         }
         fields.clear();
-        cursorRow = 1;
-        cursorColumn = 1;
+        cursorRow = 0;
+        cursorColumn = 0;
         cursorAddress = 0;
     }
     
@@ -60,40 +60,40 @@ public class ScreenBuffer {
     }
     
     public char getChar(int row, int col) {
-        if (row >= 1 && row <= rows && col >= 1 && col <= cols) {
-            return buffer[row - 1][col - 1];
+        if (row >= 0 && row < rows && col >= 0 && col < cols) {
+            return buffer[row][col];
         }
         return ' ';
     }
     
     public void setChar(int row, int col, char ch) {
-        if (row >= 1 && row <= rows && col >= 1 && col <= cols) {
-            buffer[row - 1][col - 1] = ch;
+        if (row >= 0 && row < rows && col >= 0 && col < cols) {
+            buffer[row][col] = ch;
         }
     }
     
     public void setChar(int position, char ch) {
-        int row = (position / cols) + 1;
-        int col = (position % cols) + 1;
+        int row = (position / cols);
+        int col = (position % cols);
         setChar(row, col, ch);
     }
     
     public FieldAttribute getAttribute(int row, int col) {
-        if (row >= 1 && row <= rows && col >= 1 && col <= cols) {
-            return attributes[row - 1][col - 1];
+        if (row >= 0 && row < rows && col >= 0 && col < cols) {
+            return attributes[row][col];
         }
         return null;
     }
     
     public void setAttribute(int row, int col, FieldAttribute attr) {
-        if (row >= 1 && row <= rows && col >= 1 && col <= cols) {
-            attributes[row - 1][col - 1] = attr;
+        if (row >= 0 && row < rows && col >= 0 && col < cols) {
+            attributes[row][col] = attr;
         }
     }
     
     public void setAttribute(int position, FieldAttribute attr) {
-        int row = (position / cols) + 1;
-        int col = (position % cols) + 1;
+        int row = (position / cols);
+        int col = (position % cols);
         setAttribute(row, col, attr);
     }
     
@@ -119,8 +119,8 @@ public class ScreenBuffer {
     }
     
     public InputField getFieldAt(int position) {
-        int row = (position / cols) + 1;
-        int col = (position % cols) + 1;
+        int row = (position / cols);
+        int col = (position % cols);
         return getFieldAt(row, col);
     }
     
@@ -133,18 +133,18 @@ public class ScreenBuffer {
     }
     
     public void setCursorPosition(int row, int col) {
-        if (row >= 1 && row <= rows && col >= 1 && col <= cols) {
+        if (row >= 0 && row < rows && col >= 0 && col < cols) {
             this.cursorRow = row;
             this.cursorColumn = col;
-            this.cursorAddress = (row - 1) * cols + (col - 1);
+            this.cursorAddress = row * cols + col;
         }
     }
     
     public void setCursorAddress(int address) {
         if (address >= 0 && address < rows * cols) {
             this.cursorAddress = address;
-            this.cursorRow = (address / cols) + 1;
-            this.cursorColumn = (address % cols) + 1;
+            this.cursorRow = (address / cols);
+            this.cursorColumn = (address % cols);
         }
     }
     
@@ -156,6 +156,9 @@ public class ScreenBuffer {
         if (cursorRow > 1) {
             setCursorPosition(cursorRow - 1, cursorColumn);
             return true;
+        } else if (cursorRow == 0) {
+        	setCursorPosition(rows -1, cursorColumn);
+        	return true;
         }
         return false;
     }
@@ -164,17 +167,23 @@ public class ScreenBuffer {
         if (cursorRow < rows) {
             setCursorPosition(cursorRow + 1, cursorColumn);
             return true;
-        }
+        } else if (cursorRow == (rows-1)) {
+			setCursorPosition(0, cursorColumn);
+			return true;
+		}
         return false;
     }
     
     public boolean moveCursorLeft() {
-        if (cursorColumn > 1) {
+        if (cursorColumn > 0) {
             setCursorPosition(cursorRow, cursorColumn - 1);
             return true;
-        } else if (cursorRow > 1) {
-            setCursorPosition(cursorRow - 1, cols);
+        } else if (cursorRow > 0) {
+            setCursorPosition(cursorRow - 1, cols -1);
             return true;
+        } else if (cursorRow == 0 && cursorColumn == 0) {
+        	setCursorPosition(rows -1, cols -1);
+        	return true;
         }
         return false;
     }
@@ -184,9 +193,12 @@ public class ScreenBuffer {
             setCursorPosition(cursorRow, cursorColumn + 1);
             return true;
         } else if (cursorRow < rows) {
-            setCursorPosition(cursorRow + 1, 1);
+            setCursorPosition(cursorRow + 1, 0);
             return true;
-        }
+        } else if (cursorRow == (rows -1) && cursorColumn == (cols-1)) {
+			setCursorPosition(0, 0);
+			return true;
+		}
         return false;
     }
     
