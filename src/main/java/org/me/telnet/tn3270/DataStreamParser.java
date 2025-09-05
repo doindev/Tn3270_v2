@@ -28,6 +28,115 @@ public class DataStreamParser {
     private static final byte WCC_KEYBOARD_RESTORE = (byte) 0x02;
     private static final byte WCC_SOUND_ALARM = (byte) 0x04;
     
+    // Static EBCDIC to ASCII conversion table
+    private static final char[] EBCDIC_TO_ASCII_TABLE = new char[256];
+    
+    // Initialize the conversion table once in a static block
+    static {
+        // Initialize with spaces
+        for (int i = 0; i < 256; i++) {
+            EBCDIC_TO_ASCII_TABLE[i] = ' ';
+        }
+        
+        // Common EBCDIC to ASCII mappings
+        EBCDIC_TO_ASCII_TABLE[0x00] = '\0';
+        EBCDIC_TO_ASCII_TABLE[0x40] = ' ';
+        EBCDIC_TO_ASCII_TABLE[0x4B] = '.';
+        EBCDIC_TO_ASCII_TABLE[0x4C] = '<';
+        EBCDIC_TO_ASCII_TABLE[0x4D] = '(';
+        EBCDIC_TO_ASCII_TABLE[0x4E] = '+';
+        EBCDIC_TO_ASCII_TABLE[0x4F] = '|';
+        EBCDIC_TO_ASCII_TABLE[0x50] = '&';
+        EBCDIC_TO_ASCII_TABLE[0x5A] = '!';
+        EBCDIC_TO_ASCII_TABLE[0x5B] = '$';
+        EBCDIC_TO_ASCII_TABLE[0x5C] = '*';
+        EBCDIC_TO_ASCII_TABLE[0x5D] = ')';
+        EBCDIC_TO_ASCII_TABLE[0x5E] = ';';
+        EBCDIC_TO_ASCII_TABLE[0x5F] = '~';
+        EBCDIC_TO_ASCII_TABLE[0x60] = '-';
+        EBCDIC_TO_ASCII_TABLE[0x61] = '/';
+        EBCDIC_TO_ASCII_TABLE[0x6B] = ',';
+        EBCDIC_TO_ASCII_TABLE[0x6C] = '%';
+        EBCDIC_TO_ASCII_TABLE[0x6D] = '_';
+        EBCDIC_TO_ASCII_TABLE[0x6E] = '>';
+        EBCDIC_TO_ASCII_TABLE[0x6F] = '?';
+        EBCDIC_TO_ASCII_TABLE[0x79] = '`';
+        EBCDIC_TO_ASCII_TABLE[0x7A] = ':';
+        EBCDIC_TO_ASCII_TABLE[0x7B] = '#';
+        EBCDIC_TO_ASCII_TABLE[0x7C] = '@';
+        EBCDIC_TO_ASCII_TABLE[0x7D] = '\'';
+        EBCDIC_TO_ASCII_TABLE[0x7E] = '=';
+        EBCDIC_TO_ASCII_TABLE[0x7F] = '"';
+        
+        // Lowercase letters
+        EBCDIC_TO_ASCII_TABLE[0x81] = 'a';
+        EBCDIC_TO_ASCII_TABLE[0x82] = 'b';
+        EBCDIC_TO_ASCII_TABLE[0x83] = 'c';
+        EBCDIC_TO_ASCII_TABLE[0x84] = 'd';
+        EBCDIC_TO_ASCII_TABLE[0x85] = 'e';
+        EBCDIC_TO_ASCII_TABLE[0x86] = 'f';
+        EBCDIC_TO_ASCII_TABLE[0x87] = 'g';
+        EBCDIC_TO_ASCII_TABLE[0x88] = 'h';
+        EBCDIC_TO_ASCII_TABLE[0x89] = 'i';
+        EBCDIC_TO_ASCII_TABLE[0x91] = 'j';
+        EBCDIC_TO_ASCII_TABLE[0x92] = 'k';
+        EBCDIC_TO_ASCII_TABLE[0x93] = 'l';
+        EBCDIC_TO_ASCII_TABLE[0x94] = 'm';
+        EBCDIC_TO_ASCII_TABLE[0x95] = 'n';
+        EBCDIC_TO_ASCII_TABLE[0x96] = 'o';
+        EBCDIC_TO_ASCII_TABLE[0x97] = 'p';
+        EBCDIC_TO_ASCII_TABLE[0x98] = 'q';
+        EBCDIC_TO_ASCII_TABLE[0x99] = 'r';
+        EBCDIC_TO_ASCII_TABLE[0xA2] = 's';
+        EBCDIC_TO_ASCII_TABLE[0xA3] = 't';
+        EBCDIC_TO_ASCII_TABLE[0xA4] = 'u';
+        EBCDIC_TO_ASCII_TABLE[0xA5] = 'v';
+        EBCDIC_TO_ASCII_TABLE[0xA6] = 'w';
+        EBCDIC_TO_ASCII_TABLE[0xA7] = 'x';
+        EBCDIC_TO_ASCII_TABLE[0xA8] = 'y';
+        EBCDIC_TO_ASCII_TABLE[0xA9] = 'z';
+        
+        // Uppercase letters
+        EBCDIC_TO_ASCII_TABLE[0xC1] = 'A';
+        EBCDIC_TO_ASCII_TABLE[0xC2] = 'B';
+        EBCDIC_TO_ASCII_TABLE[0xC3] = 'C';
+        EBCDIC_TO_ASCII_TABLE[0xC4] = 'D';
+        EBCDIC_TO_ASCII_TABLE[0xC5] = 'E';
+        EBCDIC_TO_ASCII_TABLE[0xC6] = 'F';
+        EBCDIC_TO_ASCII_TABLE[0xC7] = 'G';
+        EBCDIC_TO_ASCII_TABLE[0xC8] = 'H';
+        EBCDIC_TO_ASCII_TABLE[0xC9] = 'I';
+        EBCDIC_TO_ASCII_TABLE[0xD1] = 'J';
+        EBCDIC_TO_ASCII_TABLE[0xD2] = 'K';
+        EBCDIC_TO_ASCII_TABLE[0xD3] = 'L';
+        EBCDIC_TO_ASCII_TABLE[0xD4] = 'M';
+        EBCDIC_TO_ASCII_TABLE[0xD5] = 'N';
+        EBCDIC_TO_ASCII_TABLE[0xD6] = 'O';
+        EBCDIC_TO_ASCII_TABLE[0xD7] = 'P';
+        EBCDIC_TO_ASCII_TABLE[0xD8] = 'Q';
+        EBCDIC_TO_ASCII_TABLE[0xD9] = 'R';
+        EBCDIC_TO_ASCII_TABLE[0xE2] = 'S';
+        EBCDIC_TO_ASCII_TABLE[0xE3] = 'T';
+        EBCDIC_TO_ASCII_TABLE[0xE4] = 'U';
+        EBCDIC_TO_ASCII_TABLE[0xE5] = 'V';
+        EBCDIC_TO_ASCII_TABLE[0xE6] = 'W';
+        EBCDIC_TO_ASCII_TABLE[0xE7] = 'X';
+        EBCDIC_TO_ASCII_TABLE[0xE8] = 'Y';
+        EBCDIC_TO_ASCII_TABLE[0xE9] = 'Z';
+        
+        // Numbers
+        EBCDIC_TO_ASCII_TABLE[0xF0] = '0';
+        EBCDIC_TO_ASCII_TABLE[0xF1] = '1';
+        EBCDIC_TO_ASCII_TABLE[0xF2] = '2';
+        EBCDIC_TO_ASCII_TABLE[0xF3] = '3';
+        EBCDIC_TO_ASCII_TABLE[0xF4] = '4';
+        EBCDIC_TO_ASCII_TABLE[0xF5] = '5';
+        EBCDIC_TO_ASCII_TABLE[0xF6] = '6';
+        EBCDIC_TO_ASCII_TABLE[0xF7] = '7';
+        EBCDIC_TO_ASCII_TABLE[0xF8] = '8';
+        EBCDIC_TO_ASCII_TABLE[0xF9] = '9';
+    }
+    
     private ScreenBuffer buffer;
     
     public DataStreamParser(ScreenBuffer buffer) {
@@ -674,111 +783,7 @@ public class DataStreamParser {
     }
     
     private char ebcdicToAscii(int ebcdic) {
-        // Full EBCDIC to ASCII conversion table
-        char[] conversionTable = new char[256];
-        
-        // Initialize with spaces
-        for (int i = 0; i < 256; i++) {
-            conversionTable[i] = ' ';
-        }
-        
-        // Common EBCDIC to ASCII mappings
-        conversionTable[0x00] = '\0';
-        conversionTable[0x40] = ' ';
-        conversionTable[0x4B] = '.';
-        conversionTable[0x4C] = '<';
-        conversionTable[0x4D] = '(';
-        conversionTable[0x4E] = '+';
-        conversionTable[0x4F] = '|';
-        conversionTable[0x50] = '&';
-        conversionTable[0x5A] = '!';
-        conversionTable[0x5B] = '$';
-        conversionTable[0x5C] = '*';
-        conversionTable[0x5D] = ')';
-        conversionTable[0x5E] = ';';
-        conversionTable[0x5F] = '~';
-        conversionTable[0x60] = '-';
-        conversionTable[0x61] = '/';
-        conversionTable[0x6B] = ',';
-        conversionTable[0x6C] = '%';
-        conversionTable[0x6D] = '_';
-        conversionTable[0x6E] = '>';
-        conversionTable[0x6F] = '?';
-        conversionTable[0x79] = '`';
-        conversionTable[0x7A] = ':';
-        conversionTable[0x7B] = '#';
-        conversionTable[0x7C] = '@';
-        conversionTable[0x7D] = '\'';
-        conversionTable[0x7E] = '=';
-        conversionTable[0x7F] = '"';
-        
-        // Letters
-        conversionTable[0x81] = 'a';
-        conversionTable[0x82] = 'b';
-        conversionTable[0x83] = 'c';
-        conversionTable[0x84] = 'd';
-        conversionTable[0x85] = 'e';
-        conversionTable[0x86] = 'f';
-        conversionTable[0x87] = 'g';
-        conversionTable[0x88] = 'h';
-        conversionTable[0x89] = 'i';
-        conversionTable[0x91] = 'j';
-        conversionTable[0x92] = 'k';
-        conversionTable[0x93] = 'l';
-        conversionTable[0x94] = 'm';
-        conversionTable[0x95] = 'n';
-        conversionTable[0x96] = 'o';
-        conversionTable[0x97] = 'p';
-        conversionTable[0x98] = 'q';
-        conversionTable[0x99] = 'r';
-        conversionTable[0xA2] = 's';
-        conversionTable[0xA3] = 't';
-        conversionTable[0xA4] = 'u';
-        conversionTable[0xA5] = 'v';
-        conversionTable[0xA6] = 'w';
-        conversionTable[0xA7] = 'x';
-        conversionTable[0xA8] = 'y';
-        conversionTable[0xA9] = 'z';
-        
-        conversionTable[0xC1] = 'A';
-        conversionTable[0xC2] = 'B';
-        conversionTable[0xC3] = 'C';
-        conversionTable[0xC4] = 'D';
-        conversionTable[0xC5] = 'E';
-        conversionTable[0xC6] = 'F';
-        conversionTable[0xC7] = 'G';
-        conversionTable[0xC8] = 'H';
-        conversionTable[0xC9] = 'I';
-        conversionTable[0xD1] = 'J';
-        conversionTable[0xD2] = 'K';
-        conversionTable[0xD3] = 'L';
-        conversionTable[0xD4] = 'M';
-        conversionTable[0xD5] = 'N';
-        conversionTable[0xD6] = 'O';
-        conversionTable[0xD7] = 'P';
-        conversionTable[0xD8] = 'Q';
-        conversionTable[0xD9] = 'R';
-        conversionTable[0xE2] = 'S';
-        conversionTable[0xE3] = 'T';
-        conversionTable[0xE4] = 'U';
-        conversionTable[0xE5] = 'V';
-        conversionTable[0xE6] = 'W';
-        conversionTable[0xE7] = 'X';
-        conversionTable[0xE8] = 'Y';
-        conversionTable[0xE9] = 'Z';
-        
-        // Numbers
-        conversionTable[0xF0] = '0';
-        conversionTable[0xF1] = '1';
-        conversionTable[0xF2] = '2';
-        conversionTable[0xF3] = '3';
-        conversionTable[0xF4] = '4';
-        conversionTable[0xF5] = '5';
-        conversionTable[0xF6] = '6';
-        conversionTable[0xF7] = '7';
-        conversionTable[0xF8] = '8';
-        conversionTable[0xF9] = '9';
-        
-        return conversionTable[ebcdic & 0xFF];
+        // Simply lookup the character in the static conversion table
+        return EBCDIC_TO_ASCII_TABLE[ebcdic & 0xFF];
     }
 }
