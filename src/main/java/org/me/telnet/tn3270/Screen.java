@@ -301,30 +301,163 @@ public class Screen {
     }
     
     public Screen putString(String text) {
-        if (buffer.isKeyboardLocked() || text == null) {
+        if (buffer.isKeyboardLocked() || text == null || text.isEmpty()) {
             return this;
         }
         
-        InputField field = buffer.getFieldAt(buffer.getCursorRow(), buffer.getCursorColumn());
-        if (field != null && field.canInput()) {
-            for (char ch : text.toCharArray()) {
+        int currentRow = buffer.getCursorRow();
+        int currentCol = buffer.getCursorColumn();
+        int totalCols = buffer.getCols();
+        int totalRows = buffer.getRows();
+        
+        for (char ch : text.toCharArray()) {
+            // Get current position as address
+            int currentAddress = currentRow * totalCols + currentCol;
+            
+            // Check if there's a field attribute at this position (can't overwrite field markers)
+            FieldAttribute attrAtPos = buffer.getAttribute(currentRow, currentCol);
+            if (attrAtPos != null) {
+                // This is a field start position, skip to next position
+                currentCol++;
+                if (currentCol >= totalCols) {
+                    currentCol = 0;
+                    currentRow++;
+                    if (currentRow >= totalRows) {
+                        currentRow = 0;
+                    }
+                }
+                currentAddress = currentRow * totalCols + currentCol;
+            }
+            
+            // Find the field at current position
+            InputField field = buffer.getFieldAt(currentRow, currentCol);
+            
+            if (field != null && field.canInput()) {
+                // Check if character is valid for this field
                 if (field.attribute().isNumeric() && !Character.isDigit(ch)) {
-                    continue;
+                    continue; // Skip non-numeric characters in numeric fields
                 }
                 
+                // Calculate position within the field
+                int fieldStartPos = field.getFieldPosition();
+                int fieldEndRow = field.endRow();
+                int fieldEndCol = field.endColumn();
+                int fieldEndPos = fieldEndRow * totalCols + fieldEndCol;
+                
+                // Check if we're still within field boundaries
+                if ((fieldEndPos >= fieldStartPos && currentAddress > fieldEndPos) ||
+                    (fieldEndPos < fieldStartPos && currentAddress > fieldEndPos && currentAddress < fieldStartPos)) {
+                    // We've reached the end of this field, try to move to next unprotected field
+                    buffer.setCursorPosition(currentRow, currentCol);
+                    buffer.moveCursorToNextUnprotectedField();
+                    currentRow = buffer.getCursorRow();
+                    currentCol = buffer.getCursorColumn();
+                    
+                    // Try again with the new field
+                    field = buffer.getFieldAt(currentRow, currentCol);
+                    if (field == null || !field.canInput()) {
+                        break; // No more writable fields
+                    }
+                }
+                
+                // Write the character to the buffer
                 if (buffer.isInsertMode()) {
-                    field.insertCharacter(ch);
-                } else {
+                    // In insert mode, we need to shift characters to the right
+                    // First, save all characters from current position to end of field
+                    int remainingPositions = 0;
+                    if (fieldEndPos >= currentAddress) {
+                        remainingPositions = fieldEndPos - currentAddress;
+                    } else {
+                        // Field wraps around
+                        remainingPositions = (totalRows * totalCols - currentAddress) + fieldEndPos;
+                    }
+                    
+                    // Shift characters right within field boundaries
+                    for (int i = remainingPositions; i > 0; i--) {
+                        int srcPos = currentAddress + i - 1;
+                        int dstPos = currentAddress + i;
+                        
+                        int srcRow = (srcPos / totalCols) % totalRows;
+                        int srcCol = srcPos % totalCols;
+                        int dstRow = (dstPos / totalCols) % totalRows;
+                        int dstCol = dstPos % totalCols;
+                        
+                        // Don't shift beyond field boundary
+                        if (dstPos <= fieldEndPos || (fieldEndPos < fieldStartPos && dstPos <= fieldEndPos + totalRows * totalCols)) {
+                            char srcChar = buffer.getChar(srcRow, srcCol);
+                            buffer.setChar(dstRow, dstCol, srcChar);
+                        }
+                    }
+                }
+                
+                // Write the character to the buffer at current position
+                buffer.setChar(currentRow, currentCol, ch);
+                
+                // Also update the field's internal data
+                field.replaceCharacter(ch);
+                
+                // Move to next position
+                currentCol++;
+                if (currentCol >= totalCols) {
+                    currentCol = 0;
+                    currentRow++;
+                    if (currentRow >= totalRows) {
+                        currentRow = 0;
+                    }
+                }
+            } else if (field == null) {
+                // No field at this position, write directly to buffer if not protected
+                buffer.setChar(currentRow, currentCol, ch);
+                
+                // Move to next position
+                currentCol++;
+                if (currentCol >= totalCols) {
+                    currentCol = 0;
+                    currentRow++;
+                    if (currentRow >= totalRows) {
+                        currentRow = 0;
+                    }
+                }
+            } else {
+                // Protected field, try to move to next unprotected field
+                buffer.setCursorPosition(currentRow, currentCol);
+                buffer.moveCursorToNextUnprotectedField();
+                currentRow = buffer.getCursorRow();
+                currentCol = buffer.getCursorColumn();
+                
+                // Try to write the character at the new position
+                field = buffer.getFieldAt(currentRow, currentCol);
+                if (field != null && field.canInput()) {
+                    // Retry writing this character at the new position
+                    buffer.setChar(currentRow, currentCol, ch);
                     field.replaceCharacter(ch);
+                    
+                    // Move to next position
+                    currentCol++;
+                    if (currentCol >= totalCols) {
+                        currentCol = 0;
+                        currentRow++;
+                        if (currentRow >= totalRows) {
+                            currentRow = 0;
+                        }
+                    }
+                } else {
+                    break; // No more writable positions
                 }
             }
         }
+        
+        // Update cursor position
+        buffer.setCursorPosition(currentRow, currentCol);
         
         return this;
     }
     
     public Screen putString(int cursorPosition, String text) {
-        buffer.setCursorAddress(cursorPosition);
+        // Convert position to row/column
+        int row = cursorPosition / buffer.getCols();
+        int col = cursorPosition % buffer.getCols();
+        buffer.setCursorPosition(row, col);
         return putString(text);
     }
     

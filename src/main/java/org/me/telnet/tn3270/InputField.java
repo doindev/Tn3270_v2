@@ -75,16 +75,16 @@ public class InputField {
     
     public boolean containsPosition(int row, int col) {
         int totalColumns = 80;
-        int position = (row - 1) * totalColumns + (col - 1);
-        int startPos = (startRow - 1) * totalColumns + (startColumn - 1);
-        int endPos = (endRow - 1) * totalColumns + (endColumn - 1);
+        int position = row * totalColumns + col;
+        int startPos = startRow * totalColumns + startColumn;
+        int endPos = endRow * totalColumns + endColumn;
         
         return position >= startPos && position <= endPos;
     }
     
     public int getFieldPosition() {
         int totalColumns = 80;
-        return (startRow - 1) * totalColumns + (startColumn - 1);
+        return startRow * totalColumns + startColumn;
     }
     
     public boolean canInput() {

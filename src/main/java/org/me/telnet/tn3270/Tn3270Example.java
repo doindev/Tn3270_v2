@@ -29,6 +29,7 @@ public class Tn3270Example {
             
             Screen screen = tn3270.screen();
             
+            System.out.println("cursor position: " + screen.getBuffer().getCursorAddress());
             System.out.println("\n=== Screen Content ===");
             System.out.println(screen.getString());
             System.out.println("======================\n");
