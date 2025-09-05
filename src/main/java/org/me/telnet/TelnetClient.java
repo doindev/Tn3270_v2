@@ -317,8 +317,34 @@ public class TelnetClient extends Telnet {
                         }
                     }
                 } else if (ch == TelnetCommand.IAC) {
-                    wrapped.read();  // consume the IAC
-                    iacMode = true;
+                    // Peek ahead to see if this is actually a telnet command
+                    byte[] nextBytes = new byte[2];
+                    if (wrapped.peek(nextBytes, 0, 2)) {  // Peek at current byte and next
+                        int next = nextBytes[1] & 0xFF;  // Get the byte after IAC
+                        
+                        // Check if it's a valid telnet command or negotiation
+                        if (next == TelnetCommand.WILL || next == TelnetCommand.WONT ||
+                            next == TelnetCommand.DO || next == TelnetCommand.DONT ||
+                            next == TelnetCommand.SB || next == TelnetCommand.IAC ||
+                            next == TelnetCommand.GA || next == TelnetCommand.EL ||
+                            next == TelnetCommand.EC || next == TelnetCommand.AYT ||
+                            next == TelnetCommand.AO || next == TelnetCommand.IP ||
+                            next == TelnetCommand.BREAK || next == TelnetCommand.DM ||
+                            next == TelnetCommand.NOP || next == TelnetCommand.SE) {
+                            // This is a telnet command, process it normally
+                            wrapped.read();  // consume the IAC
+                            iacMode = true;
+                        } else {
+                            // Not a telnet command (could be IAC,EOR for 3270)
+                            // Pass the IAC through as data
+                            wrapped.read();  // consume and return the IAC
+                            return ch;
+                        }
+                    } else {
+                        // Can't peek ahead, treat as telnet command to be safe
+                        wrapped.read();  // consume the IAC
+                        iacMode = true;
+                    }
                 } else {
                     // Normal data byte - consume and return it
                     wrapped.read();

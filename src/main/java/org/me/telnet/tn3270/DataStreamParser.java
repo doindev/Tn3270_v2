@@ -288,6 +288,18 @@ public class DataStreamParser {
     public void processOrders(PeekableInputStream stream) throws IOException {
         byte[] peekByte = new byte[1];
         while (stream.peek(peekByte, 0, 1)) {
+            // Check for IAC,EOR sequence (End of Record marker in 3270)
+            if ((peekByte[0] & 0xFF) == 255) {  // IAC = 0xFF
+                byte[] nextBytes = new byte[2];
+                if (stream.peek(nextBytes, 0, 2) && nextBytes[1] != 0 && (nextBytes[1] & 0xFF) == 239) {  // EOR = 0xEF
+                    // Found IAC,EOR - end of 3270 data stream
+                    System.out.println("Found IAC,EOR - end of 3270 data stream");
+                    stream.read();  // consume IAC
+                    stream.read();  // consume EOR
+                    break;  // Exit the order processing loop
+                }
+            }
+            
             if (isOrder(peekByte[0])) {
 //            	System.out.println("Processing byte in orders: 0x" + String.format("%02X", peekByte[0] & 0xFF));
                 processOrder(stream);
