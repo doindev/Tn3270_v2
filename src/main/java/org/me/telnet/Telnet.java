@@ -3,7 +3,6 @@ package org.me.telnet;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,15 +14,11 @@ public class Telnet {
     private boolean[] willResponse;
     private boolean[] options;
     
-    private static final int TERMINAL_TYPE_OPTION = TelnetOption.TERMINAL_TYPE;
-    private static final int NEGOTIATE_WINDOW_SIZE_OPTION = TelnetOption.NEGOTIATE_ABOUT_WINDOW_SIZE;
     private static final int SUBNEGOTIATION_MAX_LENGTH = 512;
     
-    private int[] terminalType = null;
     protected int[] subnegotiationBuffer = new int[SUBNEGOTIATION_MAX_LENGTH];
     protected int subnegotiationCount = 0;
     
-    private boolean localEcho = true;
     private boolean receivedDo[] = new boolean[256];
     private boolean receivedWill[] = new boolean[256];
     private boolean sentDo[] = new boolean[256];
