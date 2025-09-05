@@ -138,7 +138,6 @@ public class DataStreamParser {
     }
     
     private ScreenBuffer buffer;
-    private boolean expectCommand = true;  // After negotiation, we expect a command first
     
     public DataStreamParser(ScreenBuffer buffer) {
         this.buffer = buffer;
@@ -191,55 +190,29 @@ public class DataStreamParser {
         // Get the first byte value as unsigned
         int byteValue = peekByte[0] & 0xFF;
         
-        // Debug: Log the first byte received
-        System.out.println("First byte received: 0x" + String.format("%02X", byteValue) 
-            + " (signed: " + peekByte[0] + ", unsigned: " + byteValue + ")");
-        
+       
         // If byte value is less than 240 (0xF0) when expecting a command,
         // it might be a corrupted command byte with high bits stripped
         // 3270 commands are typically in the range 0xF0-0xFF
-        if (expectCommand && byteValue < 240) {
+        if (byteValue < 240) {
             int correctedValue = byteValue + 240;
-            byte correctedByte = (byte) correctedValue;
-            
-            System.out.println("WARNING: Received 0x" + String.format("%02X", byteValue) 
-                + " when expecting command. Adding 240 to get 0x" + String.format("%02X", correctedValue));
-            
-            // Check if the corrected value is actually a valid command
-            if (isCommand(correctedByte)) {
-                stream.read(); // consume the original byte
-                byte command = correctedByte;
-                System.out.println("Corrected byte is valid command: 0x" + String.format("%02X", command & 0xFF));
-                
-                if (isWriteCommand(command)) {
-                    if (stream.peek(peekByte, 0, 1)) {
-                        byte wcc = (byte) stream.read();
-                        processWriteControlCharacter(command, wcc);
-                        expectCommand = false;  // Now we expect orders/data
-                        processOrders(stream);
-                        expectCommand = true;   // Reset for next data stream
-                    }
-                } else {
-                    processCommand(command, stream);
-                }
-            } else {
-                System.out.println("Corrected byte 0x" + String.format("%02X", correctedValue) 
-                    + " is not a valid command, processing as order/text");
-                processOrders(stream);
-            }
+            peekByte[0] = (byte) correctedValue;
         }
-        // Check if first byte is a valid command
-        else if (isCommand(peekByte[0])) {
+            
+        if (isCommand(peekByte[0])) {
             byte command = (byte) stream.read();
-            System.out.println("Processing as command: 0x" + String.format("%02X", command & 0xFF));
+            if((command & 0xFF) < 240) {
+            	int correctedValue = (command & 0xFF) + 240;
+				command = (byte) correctedValue;
+			}
+            
+//            System.out.println("Processing as command: 0x" + String.format("%02X", command & 0xFF));
             
             if (isWriteCommand(command)) {
                 if (stream.peek(peekByte, 0, 1)) {
                     byte wcc = (byte) stream.read();
                     processWriteControlCharacter(command, wcc);
-                    expectCommand = false;  // Now we expect orders/data
                     processOrders(stream);
-                    expectCommand = true;   // Reset for next data stream
                 }
             } else {
                 processCommand(command, stream);
@@ -264,8 +237,9 @@ public class DataStreamParser {
     	default -> "UNKNOWN";
     	};
     	
-    	System.out.println(command + " " + cmd);
-    	System.out.println(wcc + " wcc"); 	
+    	System.out.println((command & 0xFF) + " " + cmd);
+    	System.out.println((wcc & 0xFF) + " WCC"); 	
+    	
         if ((wcc & WCC_RESET_MDT) != 0) {
             resetModifiedDataTags();//null, 0);
         }
@@ -314,8 +288,8 @@ public class DataStreamParser {
     public void processOrders(PeekableInputStream stream) throws IOException {
         byte[] peekByte = new byte[1];
         while (stream.peek(peekByte, 0, 1)) {
-            System.out.println("Processing byte in orders: 0x" + String.format("%02X", peekByte[0] & 0xFF));
             if (isOrder(peekByte[0])) {
+//            	System.out.println("Processing byte in orders: 0x" + String.format("%02X", peekByte[0] & 0xFF));
                 processOrder(stream);
             } else {
                 processCharacter(stream);
