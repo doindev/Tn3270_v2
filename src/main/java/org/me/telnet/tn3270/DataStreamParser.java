@@ -138,6 +138,7 @@ public class DataStreamParser {
     }
     
     private ScreenBuffer buffer;
+    private boolean expectCommand = true;  // After negotiation, we expect a command first
     
     public DataStreamParser(ScreenBuffer buffer) {
         this.buffer = buffer;
@@ -187,15 +188,38 @@ public class DataStreamParser {
             return;  // No data available
         }
         
+        // Debug: Log the first byte received
+        System.out.println("First byte received: 0x" + String.format("%02X", peekByte[0] & 0xFF) 
+            + " (signed: " + peekByte[0] + ", unsigned: " + (peekByte[0] & 0xFF) + ")");
+        
+        // Special handling: If we're expecting a command after negotiation
+        // and we receive 0x05, it might be a corrupted 0xF5 (CMD_ERASE_WRITE)
+        // This is a workaround for potential transmission issues
+        if (expectCommand && peekByte[0] == 0x05) {
+            System.out.println("WARNING: Received 0x05 when expecting command. Treating as 0xF5 (CMD_ERASE_WRITE)");
+            stream.read(); // consume the byte
+            byte command = CMD_ERASE_WRITE;
+            
+            if (stream.peek(peekByte, 0, 1)) {
+                byte wcc = (byte) stream.read();
+                processWriteControlCharacter(command, wcc);
+                expectCommand = false;  // Now we expect orders/data
+                processOrders(stream);
+                expectCommand = true;   // Reset for next data stream
+            }
+        }
         // Check if first byte is a valid command
-        if (isCommand(peekByte[0])) {
+        else if (isCommand(peekByte[0])) {
             byte command = (byte) stream.read();
+            System.out.println("Processing as command: 0x" + String.format("%02X", command & 0xFF));
             
             if (isWriteCommand(command)) {
                 if (stream.peek(peekByte, 0, 1)) {
                     byte wcc = (byte) stream.read();
                     processWriteControlCharacter(command, wcc);
+                    expectCommand = false;  // Now we expect orders/data
                     processOrders(stream);
+                    expectCommand = true;   // Reset for next data stream
                 }
             } else {
                 processCommand(command, stream);
@@ -203,6 +227,7 @@ public class DataStreamParser {
         } else {
             // If not a command, might be raw 3270 data stream or text
             // Try to process as orders/text directly
+            System.out.println("Not recognized as command, processing as orders/text");
             processOrders(stream);
         }
         
@@ -269,6 +294,7 @@ public class DataStreamParser {
     public void processOrders(PeekableInputStream stream) throws IOException {
         byte[] peekByte = new byte[1];
         while (stream.peek(peekByte, 0, 1)) {
+            System.out.println("Processing byte in orders: 0x" + String.format("%02X", peekByte[0] & 0xFF));
             if (isOrder(peekByte[0])) {
                 processOrder(stream);
             } else {

@@ -22,10 +22,10 @@ public class Tn3270Example {
             System.out.println("Connecting to " + hostname + ":" + port + "...");
             tn3270.connect();
             
+            Thread.sleep(300);
+            
             System.out.println("Connected successfully!");
             System.out.println("Terminal Type: " + tn3270.getTerminalType());
-            
-            Thread.sleep(2000);
             
             Screen screen = tn3270.screen();
             
