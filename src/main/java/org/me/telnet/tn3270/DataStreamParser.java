@@ -291,9 +291,11 @@ public class DataStreamParser {
             // Check for IAC,EOR sequence (End of Record marker in 3270)
             if ((peekByte[0] & 0xFF) == 255) {  // IAC = 0xFF
                 byte[] nextBytes = new byte[2];
-                if (stream.peek(nextBytes, 0, 2) && nextBytes[1] != 0 && (nextBytes[1] & 0xFF) == 239) {  // EOR = 0xEF
+                if (
+            		stream.peek(nextBytes, 0, 2) && // IAC
+            		nextBytes[1] != 0 && (nextBytes[1] & 0xFF) == 239 // EOR
+        		) {
                     // Found IAC,EOR - end of 3270 data stream
-                    System.out.println("Found IAC,EOR - end of 3270 data stream");
                     stream.read();  // consume IAC
                     stream.read();  // consume EOR
                     break;  // Exit the order processing loop
@@ -365,7 +367,7 @@ public class DataStreamParser {
         byte[] addressBytes = new byte[2];
         if (stream.read(addressBytes, 0, 2) == 2) {
             int address = decodeAddress(addressBytes[0], addressBytes[1]);
-            buffer.setCursorAddress(address);
+            buffer.setBufferAddress(address);
         }
     }
     
@@ -373,12 +375,12 @@ public class DataStreamParser {
         byte attributeByte = (byte) stream.read();
         FieldAttribute attribute = new FieldAttribute(attributeByte);
         
-        int fieldStart = buffer.getCursorAddress();
+        int fieldStart = buffer.getBufferAddress();
         // Only mark the attribute at this position - don't create InputField yet
         buffer.setAttribute(fieldStart, attribute);
         
-        // Move cursor to next position after the field attribute byte
-        buffer.moveCursorRight();
+        // Move buffer to next position after the field attribute byte
+        buffer.moveBufferRight();
     }
     
     public void processStartFieldExtended(PeekableInputStream stream) throws IOException {
@@ -395,20 +397,20 @@ public class DataStreamParser {
         }
         
         FieldAttribute attribute = new FieldAttribute(attributeByte);
-        int fieldStart = buffer.getCursorAddress();
+        int fieldStart = buffer.getBufferAddress();
         // Only mark the attribute at this position - don't create InputField yet
         buffer.setAttribute(fieldStart, attribute);
         
-        // Move cursor to next position after the field attribute byte
-        buffer.moveCursorRight();
+        // Move buffer to next position after the field attribute byte
+        buffer.moveBufferRight();
     }
     
     public void processSetAttribute(PeekableInputStream stream) throws IOException {
         byte type = (byte) stream.read();
         byte value = (byte) stream.read();
         
-        // Get current cursor position
-        int currentAddress = buffer.getCursorAddress();
+        // Get current buffer position
+        int currentAddress = buffer.getBufferAddress();
         int row = (currentAddress / buffer.getCols()) + 1;
         int col = (currentAddress % buffer.getCols()) + 1;
         
@@ -522,24 +524,13 @@ public class DataStreamParser {
     }
     
     public void processInsertCursor(PeekableInputStream stream) throws IOException {
-        // Read the 2-byte buffer address where cursor should be positioned
-        byte[] addressBytes = new byte[2];
-        if (stream.read(addressBytes, 0, 2) == 2) {
-            int address = decodeAddress(addressBytes[0], addressBytes[1]);
-            
-            // Update the cursor address in the buffer
-            buffer.setCursorAddress(address);
-            
-            // Also update cursor row and column based on the address
-            int row = (address / buffer.getCols()) + 1;
-            int col = (address % buffer.getCols()) + 1;
-            buffer.setCursorPosition(row, col);
-        }
+        buffer.setCursorAddress(buffer.getBufferAddress());
     }
     
     public void processProgramTab(PeekableInputStream stream) throws IOException {
         // Tab to next field
         buffer.moveCursorToNextUnprotectedField();
+        buffer.moveBufferToNextUnprotectedField();
     }
     
     public void processRepeatToAddress(PeekableInputStream stream) throws IOException {
@@ -548,14 +539,14 @@ public class DataStreamParser {
             int endAddress = decodeAddress(addressBytes[0], addressBytes[1]);
             byte repeatChar = (byte) stream.read();
             
-            int currentAddress = buffer.getCursorAddress();
+            int currentAddress = buffer.getBufferAddress();
             while (currentAddress != endAddress) {
                 int row = (currentAddress / buffer.getCols()) + 1;
                 int col = (currentAddress % buffer.getCols()) + 1;
                 buffer.setChar(row, col, (char) (repeatChar & 0xFF));
                 currentAddress = (currentAddress + 1) % (buffer.getRows() * buffer.getCols());
             }
-            buffer.setCursorAddress(endAddress);
+            buffer.setBufferAddress(endAddress);
         }
     }
     
@@ -564,7 +555,7 @@ public class DataStreamParser {
         if (stream.read(addressBytes, 0, 2) == 2) {
             int endAddress = decodeAddress(addressBytes[0], addressBytes[1]);
             
-            int currentAddress = buffer.getCursorAddress();
+            int currentAddress = buffer.getBufferAddress();
             while (currentAddress != endAddress) {
                 int row = (currentAddress / buffer.getCols()) + 1;
                 int col = (currentAddress % buffer.getCols()) + 1;
@@ -576,7 +567,7 @@ public class DataStreamParser {
                 
                 currentAddress = (currentAddress + 1) % (buffer.getRows() * buffer.getCols());
             }
-            buffer.setCursorAddress(endAddress);
+            buffer.setBufferAddress(endAddress);
         }
     }
     
@@ -584,8 +575,8 @@ public class DataStreamParser {
         // Read the count of attribute type/value pairs
         int count = stream.read() & 0xFF;
         
-        // Get the field at current cursor position
-        int currentAddress = buffer.getCursorAddress();
+        // Get the field at current buffer position
+        int currentAddress = buffer.getBufferAddress();
         int row = (currentAddress / buffer.getCols()) + 1;
         int col = (currentAddress % buffer.getCols()) + 1;
         
@@ -738,16 +729,16 @@ public class DataStreamParser {
         // In 3270, graphics characters are in the range 0x40-0xFE
         char graphicsChar = (char) (graphicsByte & 0xFF);
         
-        // Get current cursor position
-        int currentAddress = buffer.getCursorAddress();
+        // Get current buffer position
+        int currentAddress = buffer.getBufferAddress();
         int row = (currentAddress / buffer.getCols()) + 1;
         int col = (currentAddress % buffer.getCols()) + 1;
         
-        // Place the graphics character at the current cursor position
+        // Place the graphics character at the current buffer position
         buffer.setChar(row, col, graphicsChar);
         
-        // Move cursor to the next position after placing the character
-        buffer.moveCursorRight();
+        // Move bufer to the next position after placing the character
+        buffer.moveBufferRight();
         
         // Debug output if needed
         System.out.println("GE: Placed graphics char 0x" + Integer.toHexString(graphicsByte & 0xFF) 
@@ -761,11 +752,11 @@ public class DataStreamParser {
             
             System.out.println(ch + " " + displayChar);
             
-            int row = (buffer.getCursorAddress() / buffer.getCols()) + 1;
-            int col = (buffer.getCursorAddress() % buffer.getCols()) + 1;
+            int row = (buffer.getBufferAddress() / buffer.getCols());
+            int col = (buffer.getBufferAddress() % buffer.getCols());
             
             buffer.setChar(row, col, displayChar);
-            buffer.moveCursorRight();
+            buffer.moveBufferRight();
         }
     }
     

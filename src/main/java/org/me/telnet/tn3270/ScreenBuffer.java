@@ -14,10 +14,14 @@ public class ScreenBuffer {
     private List<InputField> fields;
     private int cursorRow;
     private int cursorColumn;
+    private int cursorAddress;
     private boolean keyboardLocked;
     private boolean insertMode;
     private byte lastAid;
-    private int cursorAddress;
+    private int bufferRow;
+    private int bufferColumn;
+    private int bufferAddress;
+    
     
     public ScreenBuffer() {
         this(DEFAULT_ROWS, DEFAULT_COLS);
@@ -29,12 +33,16 @@ public class ScreenBuffer {
         this.buffer = new char[rows][cols];
         this.attributes = new FieldAttribute[rows][cols];
         this.fields = new ArrayList<>();
-        this.cursorRow = 1;
-        this.cursorColumn = 1;
+        this.bufferRow = 0;
+        this.bufferColumn = 0;
+        this.bufferAddress = 0;
+        this.cursorRow = 0;
+        this.cursorColumn = 0;
+        this.cursorAddress = 0;
         this.keyboardLocked = false;
         this.insertMode = false;
         this.lastAid = 0;
-        this.cursorAddress = 0;
+        
         clear();
     }
     
@@ -46,6 +54,9 @@ public class ScreenBuffer {
             }
         }
         fields.clear();
+        bufferRow = 0;
+        bufferColumn = 0;
+        bufferAddress = 0;
         cursorRow = 0;
         cursorColumn = 0;
         cursorAddress = 0;
@@ -128,8 +139,16 @@ public class ScreenBuffer {
         return cursorRow;
     }
     
+    public int getBufferRow() {
+        return bufferRow;
+    }
+    
     public int getCursorColumn() {
         return cursorColumn;
+    }
+    
+    public int getBufferColumn() {
+        return bufferColumn;
     }
     
     public void setCursorPosition(int row, int col) {
@@ -137,6 +156,14 @@ public class ScreenBuffer {
             this.cursorRow = row;
             this.cursorColumn = col;
             this.cursorAddress = row * cols + col;
+        }
+    }
+    
+    public void setBufferPosition(int row, int col) {
+        if (row >= 0 && row < rows && col >= 0 && col < cols) {
+            this.bufferRow = row;
+            this.bufferColumn = col;
+            this.bufferAddress = row * cols + col;
         }
     }
     
@@ -148,8 +175,20 @@ public class ScreenBuffer {
         }
     }
     
+    public void setBufferAddress(int address) {
+        if (address >= 0 && address < rows * cols) {
+            this.bufferAddress = address;
+            this.bufferRow = (address / cols);
+            this.bufferColumn = (address % cols);
+        }
+    }
+    
     public int getCursorAddress() {
         return cursorAddress;
+    }
+    
+    public int getBufferAddress() {
+        return bufferAddress;
     }
     
     public boolean moveCursorUp() {
@@ -163,12 +202,34 @@ public class ScreenBuffer {
         return false;
     }
     
+    public boolean moveBufferUp() {
+        if (bufferRow > 1) {
+            setBufferPosition(bufferRow - 1, bufferColumn);
+            return true;
+        } else if (bufferRow == 0) {
+        	setBufferPosition(rows -1, bufferColumn);
+        	return true;
+        }
+        return false;
+    }
+    
     public boolean moveCursorDown() {
         if (cursorRow < rows) {
             setCursorPosition(cursorRow + 1, cursorColumn);
             return true;
         } else if (cursorRow == (rows-1)) {
 			setCursorPosition(0, cursorColumn);
+			return true;
+		}
+        return false;
+    }
+    
+    public boolean moveBufferDown() {
+        if (bufferRow < rows) {
+            setBufferPosition(bufferRow + 1, bufferColumn);
+            return true;
+        } else if (bufferRow == (rows-1)) {
+			setBufferPosition(0, bufferColumn);
 			return true;
 		}
         return false;
@@ -188,6 +249,20 @@ public class ScreenBuffer {
         return false;
     }
     
+    public boolean moveBufferLeft() {
+        if (bufferColumn > 0) {
+            setBufferPosition(bufferRow, bufferColumn - 1);
+            return true;
+        } else if (bufferRow > 0) {
+            setBufferPosition(bufferRow - 1, cols -1);
+            return true;
+        } else if (bufferRow == 0 && bufferColumn == 0) {
+        	setBufferPosition(rows -1, cols -1);
+        	return true;
+        }
+        return false;
+    }
+    
     public boolean moveCursorRight() {
         if (cursorColumn < cols) {
             setCursorPosition(cursorRow, cursorColumn + 1);
@@ -197,6 +272,20 @@ public class ScreenBuffer {
             return true;
         } else if (cursorRow == (rows -1) && cursorColumn == (cols-1)) {
 			setCursorPosition(0, 0);
+			return true;
+		}
+        return false;
+    }
+    
+    public boolean moveBufferRight() {
+        if (bufferColumn < cols) {
+            setBufferPosition(bufferRow, bufferColumn + 1);
+            return true;
+        } else if (bufferRow < rows) {
+            setBufferPosition(bufferRow + 1, 0);
+            return true;
+        } else if (bufferRow == (rows -1) && bufferColumn == (cols-1)) {
+			setBufferPosition(0, 0);
 			return true;
 		}
         return false;
@@ -216,6 +305,20 @@ public class ScreenBuffer {
         }
     }
     
+    public void moveBufferToNextUnprotectedField() {
+        int startAddress = bufferAddress;
+        int currentAddress = (startAddress + 1) % (rows * cols);
+        
+        while (currentAddress != startAddress) {
+            InputField field = getFieldAt(currentAddress);
+            if (field != null && field.canInput()) {
+                setBufferAddress(currentAddress);
+                return;
+            }
+            currentAddress = (currentAddress + 1) % (rows * cols);
+        }
+    }
+    
     public void moveCursorToPreviousUnprotectedField() {
         int startAddress = cursorAddress;
         int currentAddress = (startAddress - 1 + rows * cols) % (rows * cols);
@@ -224,6 +327,20 @@ public class ScreenBuffer {
             InputField field = getFieldAt(currentAddress);
             if (field != null && field.canInput()) {
                 setCursorAddress(currentAddress);
+                return;
+            }
+            currentAddress = (currentAddress - 1 + rows * cols) % (rows * cols);
+        }
+    }
+    
+    public void moveBufferToPreviousUnprotectedField() {
+        int startAddress = bufferAddress;
+        int currentAddress = (startAddress - 1 + rows * cols) % (rows * cols);
+        
+        while (currentAddress != startAddress) {
+            InputField field = getFieldAt(currentAddress);
+            if (field != null && field.canInput()) {
+                setBufferAddress(currentAddress);
                 return;
             }
             currentAddress = (currentAddress - 1 + rows * cols) % (rows * cols);
@@ -286,12 +403,14 @@ public class ScreenBuffer {
     }
     
     public void writeString(String text, int row, int col) {
+    	// todo: this logic needs to be improved, should test if can write in field, moving to the next field when full, insert mode, etc
         for (int i = 0; i < text.length() && col + i <= cols; i++) {
             setChar(row, col + i, text.charAt(i));
         }
     }
     
     public void writeString(String text) {
+    	//todo: this logic needs to be improved, should test if can write in field, moving to next field when current field full, insert mode, etc
         writeString(text, cursorRow, cursorColumn);
         int newCol = cursorColumn + text.length();
         if (newCol <= cols) {

@@ -154,7 +154,7 @@ public class Screen {
             }
         }
         
-        // If no editable field found, move to position 1,1
+        // If no editable field found, move to position 0,0
         buffer.setCursorPosition(0, 0);
         return this;
     }
@@ -192,14 +192,14 @@ public class Screen {
     }
     
     public Screen pgup() {
-        int newRow = Math.max(1, buffer.getCursorRow() - 10);
-        buffer.setCursorPosition(newRow, buffer.getCursorColumn());
+//        int newRow = Math.max(1, buffer.getCursorRow() - 10);
+//        buffer.setCursorPosition(newRow, buffer.getCursorColumn());
         return this;
     }
     
     public Screen pgdn() {
-        int newRow = Math.min(buffer.getRows(), buffer.getCursorRow() + 10);
-        buffer.setCursorPosition(newRow, buffer.getCursorColumn());
+//        int newRow = Math.min(buffer.getRows(), buffer.getCursorRow() + 10);
+//        buffer.setCursorPosition(newRow, buffer.getCursorColumn());
         return this;
     }
     
