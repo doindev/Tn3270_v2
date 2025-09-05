@@ -179,6 +179,9 @@ public class DataStreamParser {
             return;
         }
         
+        // Clear existing fields before parsing new data stream
+        buffer.clearFields();
+        
         byte[] peekByte = new byte[1];
         if (!stream.peek(peekByte, 0, 1)) {
             return;  // No data available
@@ -202,6 +205,9 @@ public class DataStreamParser {
             // Try to process as orders/text directly
             processOrders(stream);
         }
+        
+        // After processing all orders and data, build InputFields from the buffer
+        buildFieldsFromBuffer();
     }
     
     public void processWriteControlCharacter(byte command, byte wcc) {
@@ -336,20 +342,10 @@ public class DataStreamParser {
         FieldAttribute attribute = new FieldAttribute(attributeByte);
         
         int fieldStart = buffer.getCursorAddress();
+        // Only mark the attribute at this position - don't create InputField yet
         buffer.setAttribute(fieldStart, attribute);
         
-        int nextFieldStart = findNextFieldStart(fieldStart);
-        int fieldEnd = (nextFieldStart - 1 + buffer.getRows() * buffer.getCols()) % 
-                      (buffer.getRows() * buffer.getCols());
-        
-        int startRow = (fieldStart / buffer.getCols()) + 1;
-        int startCol = (fieldStart % buffer.getCols()) + 1;
-        int endRow = (fieldEnd / buffer.getCols()) + 1;
-        int endCol = (fieldEnd % buffer.getCols()) + 1;
-        
-        InputField field = new InputField(startRow, startCol, endRow, endCol, attribute);
-        buffer.addField(field);
-        
+        // Move cursor to next position after the field attribute byte
         buffer.moveCursorRight();
     }
     
@@ -368,20 +364,10 @@ public class DataStreamParser {
         
         FieldAttribute attribute = new FieldAttribute(attributeByte);
         int fieldStart = buffer.getCursorAddress();
+        // Only mark the attribute at this position - don't create InputField yet
         buffer.setAttribute(fieldStart, attribute);
         
-        int nextFieldStart = findNextFieldStart(fieldStart);
-        int fieldEnd = (nextFieldStart - 1 + buffer.getRows() * buffer.getCols()) % 
-                      (buffer.getRows() * buffer.getCols());
-        
-        int startRow = (fieldStart / buffer.getCols()) + 1;
-        int startCol = (fieldStart % buffer.getCols()) + 1;
-        int endRow = (fieldEnd / buffer.getCols()) + 1;
-        int endCol = (fieldEnd % buffer.getCols()) + 1;
-        
-        InputField field = new InputField(startRow, startCol, endRow, endCol, attribute);
-        buffer.addField(field);
-        
+        // Move cursor to next position after the field attribute byte
         buffer.moveCursorRight();
     }
     
@@ -769,8 +755,8 @@ public class DataStreamParser {
         
         int address = ((h & 0x3F) << 6) | (l & 0x3F);
         
-        System.out.println("high " + h);
-        System.out.println(low + " low");
+        System.out.println(h + " high");
+        System.out.println(l + " low");
         System.out.println(address + " final pos");
         
         return address;
@@ -785,5 +771,96 @@ public class DataStreamParser {
     private char ebcdicToAscii(int ebcdic) {
         // Simply lookup the character in the static conversion table
         return EBCDIC_TO_ASCII_TABLE[ebcdic & 0xFF];
+    }
+    
+    /**
+     * Builds InputField objects from the buffer's attribute markings.
+     * This should be called after the entire data stream has been processed
+     * and all field attributes and character data have been written to the buffer.
+     */
+    public void buildFieldsFromBuffer() {
+        int totalPositions = buffer.getRows() * buffer.getCols();
+        
+        // Find all field start positions (where attributes are set)
+        for (int position = 0; position < totalPositions; position++) {
+            int row = (position / buffer.getCols()) + 1;
+            int col = (position % buffer.getCols()) + 1;
+            
+            FieldAttribute attr = buffer.getAttribute(row, col);
+            if (attr != null) {
+                // This is a field start position
+                int fieldStart = position;
+                
+                // The actual field data starts at the next position
+                int dataStart = (fieldStart + 1) % totalPositions;
+                int dataStartRow = (dataStart / buffer.getCols()) + 1;
+                int dataStartCol = (dataStart % buffer.getCols()) + 1;
+                
+                // Find where this field ends (next field attribute or wrap around)
+                int nextFieldPos = findNextFieldAttribute(dataStart);
+                int dataEnd;
+                
+                if (nextFieldPos == -1) {
+                    // No other field found, this field extends to just before its own attribute
+                    dataEnd = (fieldStart - 1 + totalPositions) % totalPositions;
+                } else if (nextFieldPos <= fieldStart) {
+                    // Next field found but it's before or at our field start (wrapped around)
+                    // Field extends to just before its own attribute
+                    dataEnd = (fieldStart - 1 + totalPositions) % totalPositions;
+                } else {
+                    // Normal case: field ends just before the next field attribute
+                    dataEnd = nextFieldPos - 1;
+                }
+                
+                int dataEndRow = (dataEnd / buffer.getCols()) + 1;
+                int dataEndCol = (dataEnd % buffer.getCols()) + 1;
+                
+                // Create the InputField with the correct boundaries and screen dimensions
+                // Start and end positions are for the actual data area (not the attribute byte)
+                InputField field = new InputField(dataStartRow, dataStartCol, dataEndRow, dataEndCol, attr, buffer.getRows(), buffer.getCols());
+                
+                // Initialize field data from buffer contents
+                StringBuilder fieldData = new StringBuilder();
+                int currentPos = dataStart;
+                while (currentPos != (dataEnd + 1) % totalPositions) {
+                    int r = (currentPos / buffer.getCols()) + 1;
+                    int c = (currentPos % buffer.getCols()) + 1;
+                    char ch = buffer.getChar(r, c);
+                    if (ch != ' ' && ch != '\0') {
+                        fieldData.append(ch);
+                    }
+                    currentPos = (currentPos + 1) % totalPositions;
+                }
+                
+                if (fieldData.length() > 0) {
+                    field.setData(fieldData.toString());
+                }
+                
+                buffer.addField(field);
+            }
+        }
+    }
+    
+    /**
+     * Find the next position that has a field attribute set.
+     * @param startPosition The position to start searching from
+     * @return The position of the next field attribute, or -1 if none found
+     */
+    private int findNextFieldAttribute(int startPosition) {
+        int totalPositions = buffer.getRows() * buffer.getCols();
+        int currentPosition = startPosition;
+        
+        do {
+            int row = (currentPosition / buffer.getCols()) + 1;
+            int col = (currentPosition % buffer.getCols()) + 1;
+            
+            if (buffer.getAttribute(row, col) != null) {
+                return currentPosition;
+            }
+            
+            currentPosition = (currentPosition + 1) % totalPositions;
+        } while (currentPosition != startPosition);
+        
+        return -1;  // No field attribute found
     }
 }

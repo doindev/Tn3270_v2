@@ -244,8 +244,8 @@ public class TelnetClient extends Telnet {
         
         @Override
         public int read() throws IOException {
+        	byte[] peekByte = new byte[1];
             while (true) {
-                byte[] peekByte = new byte[1];
                 if (!wrapped.peek(peekByte, 0, 1)) {
                     return -1;  // EOF
                 }

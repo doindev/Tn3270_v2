@@ -38,16 +38,35 @@ public class InputField {
     }
     
     public InputField(int startRow, int startColumn, int endRow, int endColumn, FieldAttribute attribute) {
+        this(startRow, startColumn, endRow, endColumn, attribute, 24, 80);
+    }
+    
+    public InputField(int startRow, int startColumn, int endRow, int endColumn, FieldAttribute attribute, int totalRows, int totalColumns) {
         this.startRow = startRow;
         this.startColumn = startColumn;
         this.endRow = endRow;
         this.endColumn = endColumn;
         this.attribute = attribute;
         
-        int totalColumns = 80;
+        int totalPositions = totalRows * totalColumns;
+        
         int startPos = (startRow - 1) * totalColumns + (startColumn - 1);
         int endPos = (endRow - 1) * totalColumns + (endColumn - 1);
-        this.length = endPos - startPos + 1;
+        
+        // Handle wrap-around case where field extends from end to beginning of screen
+        if (endPos < startPos) {
+            // Field wraps around the screen
+            this.length = (totalPositions - startPos) + endPos + 1;
+        } else {
+            // Normal case
+            this.length = endPos - startPos + 1;
+        }
+        
+        // Ensure length is positive
+        if (this.length <= 0) {
+            this.length = 1;
+        }
+        
         this.data = new char[length];
         Arrays.fill(this.data, ' ');
         this.cursorOffset = 0;
@@ -141,6 +160,23 @@ public class InputField {
     
     public String getDataTrimmed() {
         return new String(data).trim();
+    }
+    
+    public void setData(String newData) {
+        if (newData == null) {
+            clearData();
+            return;
+        }
+        
+        int len = Math.min(newData.length(), length);
+        for (int i = 0; i < len; i++) {
+            data[i] = newData.charAt(i);
+        }
+        for (int i = len; i < length; i++) {
+            data[i] = ' ';
+        }
+        modified = true;
+        attribute.modified(true);
     }
     
     public void clearData() {
