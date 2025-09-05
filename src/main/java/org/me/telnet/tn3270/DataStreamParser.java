@@ -188,24 +188,44 @@ public class DataStreamParser {
             return;  // No data available
         }
         
-        // Debug: Log the first byte received
-        System.out.println("First byte received: 0x" + String.format("%02X", peekByte[0] & 0xFF) 
-            + " (signed: " + peekByte[0] + ", unsigned: " + (peekByte[0] & 0xFF) + ")");
+        // Get the first byte value as unsigned
+        int byteValue = peekByte[0] & 0xFF;
         
-        // Special handling: If we're expecting a command after negotiation
-        // and we receive 0x05, it might be a corrupted 0xF5 (CMD_ERASE_WRITE)
-        // This is a workaround for potential transmission issues
-        if (expectCommand && peekByte[0] == 0x05) {
-            System.out.println("WARNING: Received 0x05 when expecting command. Treating as 0xF5 (CMD_ERASE_WRITE)");
-            stream.read(); // consume the byte
-            byte command = CMD_ERASE_WRITE;
+        // Debug: Log the first byte received
+        System.out.println("First byte received: 0x" + String.format("%02X", byteValue) 
+            + " (signed: " + peekByte[0] + ", unsigned: " + byteValue + ")");
+        
+        // If byte value is less than 240 (0xF0) when expecting a command,
+        // it might be a corrupted command byte with high bits stripped
+        // 3270 commands are typically in the range 0xF0-0xFF
+        if (expectCommand && byteValue < 240) {
+            int correctedValue = byteValue + 240;
+            byte correctedByte = (byte) correctedValue;
             
-            if (stream.peek(peekByte, 0, 1)) {
-                byte wcc = (byte) stream.read();
-                processWriteControlCharacter(command, wcc);
-                expectCommand = false;  // Now we expect orders/data
+            System.out.println("WARNING: Received 0x" + String.format("%02X", byteValue) 
+                + " when expecting command. Adding 240 to get 0x" + String.format("%02X", correctedValue));
+            
+            // Check if the corrected value is actually a valid command
+            if (isCommand(correctedByte)) {
+                stream.read(); // consume the original byte
+                byte command = correctedByte;
+                System.out.println("Corrected byte is valid command: 0x" + String.format("%02X", command & 0xFF));
+                
+                if (isWriteCommand(command)) {
+                    if (stream.peek(peekByte, 0, 1)) {
+                        byte wcc = (byte) stream.read();
+                        processWriteControlCharacter(command, wcc);
+                        expectCommand = false;  // Now we expect orders/data
+                        processOrders(stream);
+                        expectCommand = true;   // Reset for next data stream
+                    }
+                } else {
+                    processCommand(command, stream);
+                }
+            } else {
+                System.out.println("Corrected byte 0x" + String.format("%02X", correctedValue) 
+                    + " is not a valid command, processing as order/text");
                 processOrders(stream);
-                expectCommand = true;   // Reset for next data stream
             }
         }
         // Check if first byte is a valid command
