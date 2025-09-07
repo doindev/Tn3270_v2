@@ -1,6 +1,7 @@
 package org.me.telnet.tn3270;
 
 import java.io.IOException;
+
 import org.me.io.PeekableInputStream;
 
 public class DataStreamParser {
@@ -27,115 +28,6 @@ public class DataStreamParser {
     private static final byte WCC_RESET_MDT = (byte) 0x01;
     private static final byte WCC_KEYBOARD_RESTORE = (byte) 0x02;
     private static final byte WCC_SOUND_ALARM = (byte) 0x04;
-    
-    // Static EBCDIC to ASCII conversion table
-    private static final char[] EBCDIC_TO_ASCII_TABLE = new char[256];
-    
-    // Initialize the conversion table once in a static block
-    static {
-        // Initialize with spaces
-        for (int i = 0; i < 256; i++) {
-            EBCDIC_TO_ASCII_TABLE[i] = ' ';
-        }
-        
-        // Common EBCDIC to ASCII mappings
-        EBCDIC_TO_ASCII_TABLE[0x00] = '\0';
-        EBCDIC_TO_ASCII_TABLE[0x40] = ' ';
-        EBCDIC_TO_ASCII_TABLE[0x4B] = '.';
-        EBCDIC_TO_ASCII_TABLE[0x4C] = '<';
-        EBCDIC_TO_ASCII_TABLE[0x4D] = '(';
-        EBCDIC_TO_ASCII_TABLE[0x4E] = '+';
-        EBCDIC_TO_ASCII_TABLE[0x4F] = '|';
-        EBCDIC_TO_ASCII_TABLE[0x50] = '&';
-        EBCDIC_TO_ASCII_TABLE[0x5A] = '!';
-        EBCDIC_TO_ASCII_TABLE[0x5B] = '$';
-        EBCDIC_TO_ASCII_TABLE[0x5C] = '*';
-        EBCDIC_TO_ASCII_TABLE[0x5D] = ')';
-        EBCDIC_TO_ASCII_TABLE[0x5E] = ';';
-        EBCDIC_TO_ASCII_TABLE[0x5F] = '~';
-        EBCDIC_TO_ASCII_TABLE[0x60] = '-';
-        EBCDIC_TO_ASCII_TABLE[0x61] = '/';
-        EBCDIC_TO_ASCII_TABLE[0x6B] = ',';
-        EBCDIC_TO_ASCII_TABLE[0x6C] = '%';
-        EBCDIC_TO_ASCII_TABLE[0x6D] = '_';
-        EBCDIC_TO_ASCII_TABLE[0x6E] = '>';
-        EBCDIC_TO_ASCII_TABLE[0x6F] = '?';
-        EBCDIC_TO_ASCII_TABLE[0x79] = '`';
-        EBCDIC_TO_ASCII_TABLE[0x7A] = ':';
-        EBCDIC_TO_ASCII_TABLE[0x7B] = '#';
-        EBCDIC_TO_ASCII_TABLE[0x7C] = '@';
-        EBCDIC_TO_ASCII_TABLE[0x7D] = '\'';
-        EBCDIC_TO_ASCII_TABLE[0x7E] = '=';
-        EBCDIC_TO_ASCII_TABLE[0x7F] = '"';
-        
-        // Lowercase letters
-        EBCDIC_TO_ASCII_TABLE[0x81] = 'a';
-        EBCDIC_TO_ASCII_TABLE[0x82] = 'b';
-        EBCDIC_TO_ASCII_TABLE[0x83] = 'c';
-        EBCDIC_TO_ASCII_TABLE[0x84] = 'd';
-        EBCDIC_TO_ASCII_TABLE[0x85] = 'e';
-        EBCDIC_TO_ASCII_TABLE[0x86] = 'f';
-        EBCDIC_TO_ASCII_TABLE[0x87] = 'g';
-        EBCDIC_TO_ASCII_TABLE[0x88] = 'h';
-        EBCDIC_TO_ASCII_TABLE[0x89] = 'i';
-        EBCDIC_TO_ASCII_TABLE[0x91] = 'j';
-        EBCDIC_TO_ASCII_TABLE[0x92] = 'k';
-        EBCDIC_TO_ASCII_TABLE[0x93] = 'l';
-        EBCDIC_TO_ASCII_TABLE[0x94] = 'm';
-        EBCDIC_TO_ASCII_TABLE[0x95] = 'n';
-        EBCDIC_TO_ASCII_TABLE[0x96] = 'o';
-        EBCDIC_TO_ASCII_TABLE[0x97] = 'p';
-        EBCDIC_TO_ASCII_TABLE[0x98] = 'q';
-        EBCDIC_TO_ASCII_TABLE[0x99] = 'r';
-        EBCDIC_TO_ASCII_TABLE[0xA2] = 's';
-        EBCDIC_TO_ASCII_TABLE[0xA3] = 't';
-        EBCDIC_TO_ASCII_TABLE[0xA4] = 'u';
-        EBCDIC_TO_ASCII_TABLE[0xA5] = 'v';
-        EBCDIC_TO_ASCII_TABLE[0xA6] = 'w';
-        EBCDIC_TO_ASCII_TABLE[0xA7] = 'x';
-        EBCDIC_TO_ASCII_TABLE[0xA8] = 'y';
-        EBCDIC_TO_ASCII_TABLE[0xA9] = 'z';
-        
-        // Uppercase letters
-        EBCDIC_TO_ASCII_TABLE[0xC1] = 'A';
-        EBCDIC_TO_ASCII_TABLE[0xC2] = 'B';
-        EBCDIC_TO_ASCII_TABLE[0xC3] = 'C';
-        EBCDIC_TO_ASCII_TABLE[0xC4] = 'D';
-        EBCDIC_TO_ASCII_TABLE[0xC5] = 'E';
-        EBCDIC_TO_ASCII_TABLE[0xC6] = 'F';
-        EBCDIC_TO_ASCII_TABLE[0xC7] = 'G';
-        EBCDIC_TO_ASCII_TABLE[0xC8] = 'H';
-        EBCDIC_TO_ASCII_TABLE[0xC9] = 'I';
-        EBCDIC_TO_ASCII_TABLE[0xD1] = 'J';
-        EBCDIC_TO_ASCII_TABLE[0xD2] = 'K';
-        EBCDIC_TO_ASCII_TABLE[0xD3] = 'L';
-        EBCDIC_TO_ASCII_TABLE[0xD4] = 'M';
-        EBCDIC_TO_ASCII_TABLE[0xD5] = 'N';
-        EBCDIC_TO_ASCII_TABLE[0xD6] = 'O';
-        EBCDIC_TO_ASCII_TABLE[0xD7] = 'P';
-        EBCDIC_TO_ASCII_TABLE[0xD8] = 'Q';
-        EBCDIC_TO_ASCII_TABLE[0xD9] = 'R';
-        EBCDIC_TO_ASCII_TABLE[0xE2] = 'S';
-        EBCDIC_TO_ASCII_TABLE[0xE3] = 'T';
-        EBCDIC_TO_ASCII_TABLE[0xE4] = 'U';
-        EBCDIC_TO_ASCII_TABLE[0xE5] = 'V';
-        EBCDIC_TO_ASCII_TABLE[0xE6] = 'W';
-        EBCDIC_TO_ASCII_TABLE[0xE7] = 'X';
-        EBCDIC_TO_ASCII_TABLE[0xE8] = 'Y';
-        EBCDIC_TO_ASCII_TABLE[0xE9] = 'Z';
-        
-        // Numbers
-        EBCDIC_TO_ASCII_TABLE[0xF0] = '0';
-        EBCDIC_TO_ASCII_TABLE[0xF1] = '1';
-        EBCDIC_TO_ASCII_TABLE[0xF2] = '2';
-        EBCDIC_TO_ASCII_TABLE[0xF3] = '3';
-        EBCDIC_TO_ASCII_TABLE[0xF4] = '4';
-        EBCDIC_TO_ASCII_TABLE[0xF5] = '5';
-        EBCDIC_TO_ASCII_TABLE[0xF6] = '6';
-        EBCDIC_TO_ASCII_TABLE[0xF7] = '7';
-        EBCDIC_TO_ASCII_TABLE[0xF8] = '8';
-        EBCDIC_TO_ASCII_TABLE[0xF9] = '9';
-    }
     
     private ScreenBuffer buffer;
     
@@ -180,11 +72,14 @@ public class DataStreamParser {
         }
         
         // Clear existing fields before parsing new data stream
-        buffer.clearFields();
+//        buffer.clearFields();
         
         byte[] peekByte = new byte[1];
         if (!stream.peek(peekByte, 0, 1)) {
+        	System.out.println("No data to read");
             return;  // No data available
+        } else {
+        	System.out.println("Data available to read: 0x" + String.format("%02X", peekByte[0] & 0xFF));
         }
         
         // Get the first byte value as unsigned
@@ -278,11 +173,7 @@ public class DataStreamParser {
     }
     
     private void eraseAllUnprotected() {
-        for (InputField field : buffer.getFields()) {
-            if (field.canInput()) {
-                field.clearData();
-            }
-        }
+        buffer.eraseAllUnprotected();
     }
     
     public void processOrders(PeekableInputStream stream) throws IOException {
@@ -367,20 +258,27 @@ public class DataStreamParser {
         byte[] addressBytes = new byte[2];
         if (stream.read(addressBytes, 0, 2) == 2) {
             int address = decodeAddress(addressBytes[0], addressBytes[1]);
-            buffer.setBufferAddress(address);
+//            buffer.setBufferAddress(address);
+            buffer.setBufferPosition(address);
         }
     }
     
     public void processStartField(PeekableInputStream stream) throws IOException {
         byte attributeByte = (byte) stream.read();
-        FieldAttribute attribute = new FieldAttribute(attributeByte);
         
-        int fieldStart = buffer.getBufferAddress();
-        // Only mark the attribute at this position - don't create InputField yet
-        buffer.setAttribute(fieldStart, attribute);
+        System.out.println((attributeByte & 0xFF) + " Field Attribute");
         
-        // Move buffer to next position after the field attribute byte
-        buffer.moveBufferRight();
+//        FieldAttribute attribute = new FieldAttribute(attributeByte);
+//        
+//        int fieldStart = buffer.getBufferAddress();
+//        // Only mark the attribute at this position - don't create InputField yet
+//        buffer.setAttribute(fieldStart, attribute);
+//        
+//        // Move buffer to next position after the field attribute byte
+//        buffer.moveBufferRight();
+        
+        buffer.startField(buffer.getBufferPosition(), attributeByte);
+        buffer.incBufferPosition();
     }
     
     public void processStartFieldExtended(PeekableInputStream stream) throws IOException {
@@ -396,13 +294,16 @@ public class DataStreamParser {
             }
         }
         
-        FieldAttribute attribute = new FieldAttribute(attributeByte);
-        int fieldStart = buffer.getBufferAddress();
-        // Only mark the attribute at this position - don't create InputField yet
-        buffer.setAttribute(fieldStart, attribute);
+//        FieldAttribute attribute = new FieldAttribute(attributeByte);
+//        int fieldStart = buffer.getBufferAddress();
+//        // Only mark the attribute at this position - don't create InputField yet
+//        buffer.setAttribute(fieldStart, attribute);
+//        
+//        // Move buffer to next position after the field attribute byte
+//        buffer.moveBufferRight();
         
-        // Move buffer to next position after the field attribute byte
-        buffer.moveBufferRight();
+        buffer.startField(buffer.getBufferPosition(), attributeByte);
+        buffer.incBufferPosition();
     }
     
     public void processSetAttribute(PeekableInputStream stream) throws IOException {
@@ -410,23 +311,25 @@ public class DataStreamParser {
         byte value = (byte) stream.read();
         
         // Get current buffer position
-        int currentAddress = buffer.getBufferAddress();
-        int row = (currentAddress / buffer.getCols()) + 1;
-        int col = (currentAddress % buffer.getCols()) + 1;
+//        int currentAddress = buffer.getBufferAddress();
+        int currentAddress = buffer.getBufferPosition();
+//        int row = (currentAddress / buffer.getCols()) + 1;
+//        int col = (currentAddress % buffer.getCols()) + 1;
         
         // Get the field at current position (if any)
-        InputField field = buffer.getFieldAt(row, col);
+//        InputField field = buffer.getFieldAt(row, col);
         
         // Process the attribute type according to 3270 protocol
         switch (type) {
             case (byte) 0x00: // Reset all attributes
                 // Reset to default attribute
                 FieldAttribute defaultAttr = new FieldAttribute();
-                if (field != null) {
-                    field.attribute(defaultAttr);
-                } else {
-                    buffer.setAttribute(currentAddress, defaultAttr);
-                }
+//                if (field != null) {
+//                    field.attribute(defaultAttr);
+//                } else {
+//                    buffer.setAttribute(currentAddress, defaultAttr);
+                    buffer.startField(buffer.getBufferPosition(), defaultAttr.toAttributeByte());
+//                }
                 break;
                 
             case (byte) 0x41: // Extended highlighting
@@ -447,14 +350,14 @@ public class DataStreamParser {
                         break;
                 }
                 if (highlighting != null) {
-                    if (field != null) {
-                        field.attribute().highlighting(highlighting);
-                    } else {
-                        FieldAttribute attr = buffer.getAttribute(row, col);
+//                    if (field != null) {
+//                        field.attribute().highlighting(highlighting);
+//                    } else {
+                        FieldAttribute attr = buffer.getAttribute(currentAddress);
                         if (attr != null) {
                             attr.highlighting(highlighting);
                         }
-                    }
+//                    }
                 }
                 break;
                 
@@ -488,14 +391,14 @@ public class DataStreamParser {
                         break;
                 }
                 if (color != null) {
-                    if (field != null) {
-                        field.attribute().color(color);
-                    } else {
-                        FieldAttribute attr = buffer.getAttribute(row, col);
+//                    if (field != null) {
+//                        field.attribute().color(color);
+//                    } else {
+                        FieldAttribute attr = buffer.getAttribute(currentAddress);
                         if (attr != null) {
                             attr.color(color);
                         }
-                    }
+//                    }
                 }
                 break;
                 
@@ -524,13 +427,17 @@ public class DataStreamParser {
     }
     
     public void processInsertCursor(PeekableInputStream stream) throws IOException {
-        buffer.setCursorAddress(buffer.getBufferAddress());
+        buffer.setCursorPosition(buffer.getBufferPosition());
     }
     
     public void processProgramTab(PeekableInputStream stream) throws IOException {
         // Tab to next field
-        buffer.moveCursorToNextUnprotectedField();
-        buffer.moveBufferToNextUnprotectedField();
+//        buffer.moveCursorToNextUnprotectedField();
+//        buffer.moveBufferToNextUnprotectedField();
+        
+        buffer.setCursorPosition(buffer.getBufferPosition());
+        buffer.doTab(false);
+        buffer.setBufferPosition(buffer.getCursorPosition());
     }
     
     public void processRepeatToAddress(PeekableInputStream stream) throws IOException {
@@ -539,14 +446,18 @@ public class DataStreamParser {
             int endAddress = decodeAddress(addressBytes[0], addressBytes[1]);
             byte repeatChar = (byte) stream.read();
             
-            int currentAddress = buffer.getBufferAddress();
-            while (currentAddress != endAddress) {
-                int row = (currentAddress / buffer.getCols()) + 1;
-                int col = (currentAddress % buffer.getCols()) + 1;
-                buffer.setChar(row, col, (char) (repeatChar & 0xFF));
-                currentAddress = (currentAddress + 1) % (buffer.getRows() * buffer.getCols());
-            }
-            buffer.setBufferAddress(endAddress);
+            while(buffer.getBufferPosition() > endAddress) {
+				buffer.pushEbcdic(repeatChar);
+			}
+            
+//            int currentAddress = buffer.getBufferAddress();
+//            while (currentAddress != endAddress) {
+//                int row = (currentAddress / buffer.getCols()) + 1;
+//                int col = (currentAddress % buffer.getCols()) + 1;
+//                buffer.setChar(row, col, (char) (repeatChar & 0xFF));
+//                currentAddress = (currentAddress + 1) % (buffer.getRows() * buffer.getCols());
+//            }
+//            buffer.setBufferAddress(endAddress);
         }
     }
     
@@ -555,19 +466,22 @@ public class DataStreamParser {
         if (stream.read(addressBytes, 0, 2) == 2) {
             int endAddress = decodeAddress(addressBytes[0], addressBytes[1]);
             
-            int currentAddress = buffer.getBufferAddress();
-            while (currentAddress != endAddress) {
-                int row = (currentAddress / buffer.getCols()) + 1;
-                int col = (currentAddress % buffer.getCols()) + 1;
-                
-                InputField field = buffer.getFieldAt(row, col);
-                if (field != null && field.canInput()) {
-                    buffer.setChar(row, col, ' ');
-                }
-                
-                currentAddress = (currentAddress + 1) % (buffer.getRows() * buffer.getCols());
-            }
-            buffer.setBufferAddress(endAddress);
+            
+            // todo:
+            
+//            int currentAddress = buffer.getBufferAddress();
+//            while (currentAddress != endAddress) {
+//                int row = (currentAddress / buffer.getCols()) + 1;
+//                int col = (currentAddress % buffer.getCols()) + 1;
+//                
+//                InputField field = buffer.getFieldAt(row, col);
+//                if (field != null && field.canInput()) {
+//                    buffer.setChar(row, col, ' ');
+//                }
+//                
+//                currentAddress = (currentAddress + 1) % (buffer.getRows() * buffer.getCols());
+//            }
+//            buffer.setBufferAddress(endAddress);
         }
     }
     
@@ -575,146 +489,149 @@ public class DataStreamParser {
         // Read the count of attribute type/value pairs
         int count = stream.read() & 0xFF;
         
+        
+        // todo: 
+        
         // Get the field at current buffer position
-        int currentAddress = buffer.getBufferAddress();
-        int row = (currentAddress / buffer.getCols()) + 1;
-        int col = (currentAddress % buffer.getCols()) + 1;
-        
-        // Find the field that starts at or contains the current position
-        InputField field = null;
-        for (InputField f : buffer.getFields()) {
-            if (f.getFieldPosition() == currentAddress) {
-                // Field starts at current position
-                field = f;
-                break;
-            } else if (f.containsPosition(row, col)) {
-                // Current position is within this field
-                field = f;
-                break;
-            }
-        }
-        
-        if (field == null) {
-            // No field at current position, skip the attribute pairs
-            for (int i = 0; i < count; i++) {
-                stream.read(); // type
-                stream.read(); // value
-            }
-            System.out.println("MF: No field found at position " + currentAddress);
-            return;
-        }
-        
-        // Process each attribute type/value pair
-        for (int i = 0; i < count; i++) {
-            byte type = (byte) stream.read();
-            byte value = (byte) stream.read();
-            
-            // Process different modification types according to 3270 spec
-            switch (type) {
-                case (byte) 0xC0: // Basic field attribute
-                    // Replace the entire field attribute
-                    field.attribute(new FieldAttribute(value));
-                    System.out.println("MF: Set field attribute to 0x" + Integer.toHexString(value & 0xFF));
-                    break;
-                    
-                case (byte) 0xC1: // Field highlighting
-                    // Set field highlighting (blink, reverse video, underline)
-                    FieldHighlighting highlighting = null;
-                    switch (value) {
-                        case (byte) 0x00: highlighting = FieldHighlighting.NORMAL; break;
-                        case (byte) 0xF1: highlighting = FieldHighlighting.BLINK; break;
-                        case (byte) 0xF2: highlighting = FieldHighlighting.REVERSE; break;
-                        case (byte) 0xF4: highlighting = FieldHighlighting.UNDERSCORE; break;
-                        default:
-                            System.out.println("MF: Unknown highlighting value: 0x" + Integer.toHexString(value & 0xFF));
-                    }
-                    if (highlighting != null) {
-                        field.attribute().highlighting(highlighting);
-                    }
-                    break;
-                    
-                case (byte) 0xC2: // Field color
-                    // Set field color
-                    FieldColor color = null;
-                    switch (value) {
-                        case (byte) 0x00: color = FieldColor.DEFAULT; break;
-                        case (byte) 0xF1: color = FieldColor.BLUE; break;
-                        case (byte) 0xF2: color = FieldColor.RED; break;
-                        case (byte) 0xF3: color = FieldColor.PINK; break;
-                        case (byte) 0xF4: color = FieldColor.GREEN; break;
-                        case (byte) 0xF5: color = FieldColor.TURQUOISE; break;
-                        case (byte) 0xF6: color = FieldColor.YELLOW; break;
-                        case (byte) 0xF7: color = FieldColor.WHITE; break;
-                        default:
-                            System.out.println("MF: Unknown color value: 0x" + Integer.toHexString(value & 0xFF));
-                    }
-                    if (color != null) {
-                        field.attribute().color(color);
-                    }
-                    break;
-                    
-                case (byte) 0xC3: // Field character set
-                    // Set character set for the field
-                    System.out.println("MF: Character set value: 0x" + Integer.toHexString(value & 0xFF));
-                    // Implementation would depend on terminal support
-                    break;
-                    
-                case (byte) 0xC4: // Field outlining  
-                    // Set field outlining (box around field)
-                    System.out.println("MF: Outlining value: 0x" + Integer.toHexString(value & 0xFF));
-                    // Common values: 0x00=no outline, 0x01=underline, 0x02=right line, 0x04=overline, 0x08=left line
-                    break;
-                    
-                case (byte) 0xC5: // Field transparency
-                    // Set field transparency
-                    System.out.println("MF: Transparency value: 0x" + Integer.toHexString(value & 0xFF));
-                    // 0x00=opaque, 0xF0=transparent
-                    break;
-                    
-                case (byte) 0xC6: // Field validation
-                    // Set field validation type (mandatory fill, trigger, etc.)
-                    System.out.println("MF: Validation value: 0x" + Integer.toHexString(value & 0xFF));
-                    // 0x00=normal, 0x01=mandatory fill, 0x02=mandatory enter, 0x03=trigger
-                    break;
-                    
-                case (byte) 0xC7: // Field modification
-                    // Modify MDT (Modified Data Tag) flag
-                    if (value == 0x00) {
-                        field.modified(false);
-                        System.out.println("MF: Reset MDT flag");
-                    } else {
-                        field.modified(true);
-                        System.out.println("MF: Set MDT flag");
-                    }
-                    break;
-                    
-                case (byte) 0xC8: // Field intensity
-                    // Set field intensity
-                    FieldIntensity intensity = null;
-                    switch (value) {
-                        case (byte) 0x00: intensity = FieldIntensity.NORMAL; break;
-                        case (byte) 0xF0: intensity = FieldIntensity.NORMAL; break;
-                        case (byte) 0xF1: intensity = FieldIntensity.HIGH; break;
-                        case (byte) 0xF2: intensity = FieldIntensity.ZERO; break;
-                        default:
-                            System.out.println("MF: Unknown intensity value: 0x" + Integer.toHexString(value & 0xFF));
-                    }
-                    if (intensity != null) {
-                        field.attribute().intensity(intensity);
-                    }
-                    break;
-                    
-                default:
-                    // Unknown attribute type
-                    System.out.println("MF: Unknown attribute type: 0x" + Integer.toHexString(type & 0xFF) 
-                        + " value: 0x" + Integer.toHexString(value & 0xFF));
-                    break;
-            }
-        }
-        
-        // Mark field as having been modified if any attributes changed
-        field.modified(true);
-        System.out.println("MF: Modified field at address " + currentAddress);
+//        int currentAddress = buffer.getBufferPosition();
+//        int row = (currentAddress / buffer.getCols()) + 1;
+//        int col = (currentAddress % buffer.getCols()) + 1;
+//        
+//        // Find the field that starts at or contains the current position
+//        InputField field = null;
+//        for (InputField f : buffer.getFields()) {
+//            if (f.getFieldPosition() == currentAddress) {
+//                // Field starts at current position
+//                field = f;
+//                break;
+//            } else if (f.containsPosition(row, col)) {
+//                // Current position is within this field
+//                field = f;
+//                break;
+//            }
+//        }
+//        
+//        if (field == null) {
+//            // No field at current position, skip the attribute pairs
+//            for (int i = 0; i < count; i++) {
+//                stream.read(); // type
+//                stream.read(); // value
+//            }
+//            System.out.println("MF: No field found at position " + currentAddress);
+//            return;
+//        }
+//        
+//        // Process each attribute type/value pair
+//        for (int i = 0; i < count; i++) {
+//            byte type = (byte) stream.read();
+//            byte value = (byte) stream.read();
+//            
+//            // Process different modification types according to 3270 spec
+//            switch (type) {
+//                case (byte) 0xC0: // Basic field attribute
+//                    // Replace the entire field attribute
+//                    field.attribute(new FieldAttribute(value));
+//                    System.out.println("MF: Set field attribute to 0x" + Integer.toHexString(value & 0xFF));
+//                    break;
+//                    
+//                case (byte) 0xC1: // Field highlighting
+//                    // Set field highlighting (blink, reverse video, underline)
+//                    FieldHighlighting highlighting = null;
+//                    switch (value) {
+//                        case (byte) 0x00: highlighting = FieldHighlighting.NORMAL; break;
+//                        case (byte) 0xF1: highlighting = FieldHighlighting.BLINK; break;
+//                        case (byte) 0xF2: highlighting = FieldHighlighting.REVERSE; break;
+//                        case (byte) 0xF4: highlighting = FieldHighlighting.UNDERSCORE; break;
+//                        default:
+//                            System.out.println("MF: Unknown highlighting value: 0x" + Integer.toHexString(value & 0xFF));
+//                    }
+//                    if (highlighting != null) {
+//                        field.attribute().highlighting(highlighting);
+//                    }
+//                    break;
+//                    
+//                case (byte) 0xC2: // Field color
+//                    // Set field color
+//                    FieldColor color = null;
+//                    switch (value) {
+//                        case (byte) 0x00: color = FieldColor.DEFAULT; break;
+//                        case (byte) 0xF1: color = FieldColor.BLUE; break;
+//                        case (byte) 0xF2: color = FieldColor.RED; break;
+//                        case (byte) 0xF3: color = FieldColor.PINK; break;
+//                        case (byte) 0xF4: color = FieldColor.GREEN; break;
+//                        case (byte) 0xF5: color = FieldColor.TURQUOISE; break;
+//                        case (byte) 0xF6: color = FieldColor.YELLOW; break;
+//                        case (byte) 0xF7: color = FieldColor.WHITE; break;
+//                        default:
+//                            System.out.println("MF: Unknown color value: 0x" + Integer.toHexString(value & 0xFF));
+//                    }
+//                    if (color != null) {
+//                        field.attribute().color(color);
+//                    }
+//                    break;
+//                    
+//                case (byte) 0xC3: // Field character set
+//                    // Set character set for the field
+//                    System.out.println("MF: Character set value: 0x" + Integer.toHexString(value & 0xFF));
+//                    // Implementation would depend on terminal support
+//                    break;
+//                    
+//                case (byte) 0xC4: // Field outlining  
+//                    // Set field outlining (box around field)
+//                    System.out.println("MF: Outlining value: 0x" + Integer.toHexString(value & 0xFF));
+//                    // Common values: 0x00=no outline, 0x01=underline, 0x02=right line, 0x04=overline, 0x08=left line
+//                    break;
+//                    
+//                case (byte) 0xC5: // Field transparency
+//                    // Set field transparency
+//                    System.out.println("MF: Transparency value: 0x" + Integer.toHexString(value & 0xFF));
+//                    // 0x00=opaque, 0xF0=transparent
+//                    break;
+//                    
+//                case (byte) 0xC6: // Field validation
+//                    // Set field validation type (mandatory fill, trigger, etc.)
+//                    System.out.println("MF: Validation value: 0x" + Integer.toHexString(value & 0xFF));
+//                    // 0x00=normal, 0x01=mandatory fill, 0x02=mandatory enter, 0x03=trigger
+//                    break;
+//                    
+//                case (byte) 0xC7: // Field modification
+//                    // Modify MDT (Modified Data Tag) flag
+//                    if (value == 0x00) {
+//                        field.modified(false);
+//                        System.out.println("MF: Reset MDT flag");
+//                    } else {
+//                        field.modified(true);
+//                        System.out.println("MF: Set MDT flag");
+//                    }
+//                    break;
+//                    
+//                case (byte) 0xC8: // Field intensity
+//                    // Set field intensity
+//                    FieldIntensity intensity = null;
+//                    switch (value) {
+//                        case (byte) 0x00: intensity = FieldIntensity.NORMAL; break;
+//                        case (byte) 0xF0: intensity = FieldIntensity.NORMAL; break;
+//                        case (byte) 0xF1: intensity = FieldIntensity.HIGH; break;
+//                        case (byte) 0xF2: intensity = FieldIntensity.ZERO; break;
+//                        default:
+//                            System.out.println("MF: Unknown intensity value: 0x" + Integer.toHexString(value & 0xFF));
+//                    }
+//                    if (intensity != null) {
+//                        field.attribute().intensity(intensity);
+//                    }
+//                    break;
+//                    
+//                default:
+//                    // Unknown attribute type
+//                    System.out.println("MF: Unknown attribute type: 0x" + Integer.toHexString(type & 0xFF) 
+//                        + " value: 0x" + Integer.toHexString(value & 0xFF));
+//                    break;
+//            }
+//        }
+//        
+//        // Mark field as having been modified if any attributes changed
+//        field.modified(true);
+//        System.out.println("MF: Modified field at address " + currentAddress);
     }
     
     public void processGraphicsEscape(PeekableInputStream stream) throws IOException {
@@ -729,16 +646,19 @@ public class DataStreamParser {
         // In 3270, graphics characters are in the range 0x40-0xFE
         char graphicsChar = (char) (graphicsByte & 0xFF);
         
+        buffer.pushEbcdic((byte) graphicsByte);
+        
         // Get current buffer position
-        int currentAddress = buffer.getBufferAddress();
+        int currentAddress = buffer.getBufferPosition();
         int row = (currentAddress / buffer.getCols()) + 1;
         int col = (currentAddress % buffer.getCols()) + 1;
-        
-        // Place the graphics character at the current buffer position
-        buffer.setChar(row, col, graphicsChar);
-        
-        // Move bufer to the next position after placing the character
-        buffer.moveBufferRight();
+//        
+//        
+//        // Place the graphics character at the current buffer position
+//        buffer.setChar(row, col, graphicsChar);
+//        
+//        // Move bufer to the next position after placing the character
+//        buffer.moveBufferRight();
         
         // Debug output if needed
         System.out.println("GE: Placed graphics char 0x" + Integer.toHexString(graphicsByte & 0xFF) 
@@ -748,15 +668,11 @@ public class DataStreamParser {
     public void processCharacter(PeekableInputStream stream) throws IOException {
         int ch = stream.read();
         if (ch != -1) {
-            char displayChar = ebcdicToAscii((byte) ch);
+            char displayChar =  Tn3270Conversions.ebcdicToAscii(ch);
             
             System.out.println(ch + " " + displayChar);
             
-            int row = (buffer.getBufferAddress() / buffer.getCols());
-            int col = (buffer.getBufferAddress() % buffer.getCols());
-            
-            buffer.setChar(row, col, displayChar);
-            buffer.moveBufferRight();
+            buffer.pushEbcdic((byte) ch);
         }
     }
     
@@ -779,77 +695,77 @@ public class DataStreamParser {
         return new int[] {row, col};
     }
     
-    private char ebcdicToAscii(int ebcdic) {
-        // Simply lookup the character in the static conversion table
-        return EBCDIC_TO_ASCII_TABLE[ebcdic & 0xFF];
-    }
-    
     /**
      * Builds InputField objects from the buffer's attribute markings.
      * This should be called after the entire data stream has been processed
      * and all field attributes and character data have been written to the buffer.
      */
     public void buildFieldsFromBuffer() {
-        int totalPositions = buffer.getRows() * buffer.getCols();
-        
-        // Find all field start positions (where attributes are set)
-        for (int position = 0; position < totalPositions; position++) {
-            int row = (position / buffer.getCols()) + 1;
-            int col = (position % buffer.getCols()) + 1;
-            
-            FieldAttribute attr = buffer.getAttribute(row, col);
-            if (attr != null) {
-                // This is a field start position
-                int fieldStart = position;
-                
-                // The actual field data starts at the next position
-                int dataStart = (fieldStart + 1) % totalPositions;
-                int dataStartRow = (dataStart / buffer.getCols()) + 1;
-                int dataStartCol = (dataStart % buffer.getCols()) + 1;
-                
-                // Find where this field ends (next field attribute or wrap around)
-                int nextFieldPos = findNextFieldAttribute(dataStart);
-                int dataEnd;
-                
-                if (nextFieldPos == -1) {
-                    // No other field found, this field extends to just before its own attribute
-                    dataEnd = (fieldStart - 1 + totalPositions) % totalPositions;
-                } else if (nextFieldPos <= fieldStart) {
-                    // Next field found but it's before or at our field start (wrapped around)
-                    // Field extends to just before its own attribute
-                    dataEnd = (fieldStart - 1 + totalPositions) % totalPositions;
-                } else {
-                    // Normal case: field ends just before the next field attribute
-                    dataEnd = nextFieldPos - 1;
-                }
-                
-                int dataEndRow = (dataEnd / buffer.getCols()) + 1;
-                int dataEndCol = (dataEnd % buffer.getCols()) + 1;
-                
-                // Create the InputField with the correct boundaries and screen dimensions
-                // Start and end positions are for the actual data area (not the attribute byte)
-                InputField field = new InputField(dataStartRow, dataStartCol, dataEndRow, dataEndCol, attr, buffer.getRows(), buffer.getCols());
-                
-                // Initialize field data from buffer contents
-                StringBuilder fieldData = new StringBuilder();
-                int currentPos = dataStart;
-                while (currentPos != (dataEnd + 1) % totalPositions) {
-                    int r = (currentPos / buffer.getCols()) + 1;
-                    int c = (currentPos % buffer.getCols()) + 1;
-                    char ch = buffer.getChar(r, c);
-                    if (ch != ' ' && ch != '\0') {
-                        fieldData.append(ch);
-                    }
-                    currentPos = (currentPos + 1) % totalPositions;
-                }
-                
-                if (fieldData.length() > 0) {
-                    field.setData(fieldData.toString());
-                }
-                
-                buffer.addField(field);
-            }
-        }
+    	System.out.println("Building fields from buffer");
+//    	if(1==1) {
+//			return;
+//		}
+//    	
+//        int totalPositions = buffer.getRows() * buffer.getCols();
+//        
+//        // Find all field start positions (where attributes are set)
+//        for (int position = 0; position < totalPositions; position++) {
+//            int row = (position / buffer.getCols());
+//            int col = (position % buffer.getCols());
+//            
+//            FieldAttribute attr = buffer.getAttribute(row, col);
+//            if (attr != null) {
+//                // This is a field start position
+//                int fieldStart = position;
+//                
+//                // The actual field data starts at the next position
+//                int dataStart = (fieldStart + 1) % totalPositions;
+//                int dataStartRow = (dataStart / buffer.getCols());
+//                int dataStartCol = (dataStart % buffer.getCols());
+//                
+//                // Find where this field ends (next field attribute or wrap around)
+//                int nextFieldPos = findNextFieldAttribute(dataStart);
+//                int dataEnd;
+//                
+//                if (nextFieldPos == -1) {
+//                    // No other field found, this field extends to just before its own attribute
+//                    dataEnd = (fieldStart - 1 + totalPositions) % totalPositions;
+//                } else if (nextFieldPos <= fieldStart) {
+//                    // Next field found but it's before or at our field start (wrapped around)
+//                    // Field extends to just before its own attribute
+//                    dataEnd = (fieldStart - 1 + totalPositions) % totalPositions;
+//                } else {
+//                    // Normal case: field ends just before the next field attribute
+//                    dataEnd = nextFieldPos - 1;
+//                }
+//                
+//                int dataEndRow = (dataEnd / buffer.getCols());
+//                int dataEndCol = (dataEnd % buffer.getCols());
+//                
+//                // Create the InputField with the correct boundaries and screen dimensions
+//                // Start and end positions are for the actual data area (not the attribute byte)
+//                InputField field = new InputField(dataStartRow, dataStartCol, dataEndRow, dataEndCol, attr, buffer.getRows(), buffer.getCols());
+//                
+//                // Initialize field data from buffer contents
+//                StringBuilder fieldData = new StringBuilder();
+//                int currentPos = dataStart;
+//                while (currentPos != (dataEnd + 1) % totalPositions) {
+//                    int r = (currentPos / buffer.getCols());
+//                    int c = (currentPos % buffer.getCols());
+//                    char ch = buffer.getChar(r, c);
+//                    if (ch != ' ' && ch != '\0') {
+//                        fieldData.append(ch);
+//                    }
+//                    currentPos = (currentPos + 1) % totalPositions;
+//                }
+//                
+//                if (fieldData.length() > 0) {
+//                    field.setData(fieldData.toString());
+//                }
+//                
+//                buffer.addField(field);
+//            }
+//        }
     }
     
     /**
@@ -862,10 +778,11 @@ public class DataStreamParser {
         int currentPosition = startPosition;
         
         do {
-            int row = (currentPosition / buffer.getCols()) + 1;
-            int col = (currentPosition % buffer.getCols()) + 1;
+//            int row = (currentPosition / buffer.getCols());
+//            int col = (currentPosition % buffer.getCols());
             
-            if (buffer.getAttribute(row, col) != null) {
+//            if (buffer.getAttribute(row, col) != null) {
+        	if (buffer.getAttribute(currentPosition) != null) {
                 return currentPosition;
             }
             
