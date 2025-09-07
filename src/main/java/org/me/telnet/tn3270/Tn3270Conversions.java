@@ -130,6 +130,9 @@ public abstract class Tn3270Conversions {
 	public static char ebcdicToAscii(byte ebcdic) {
 		return EBCDIC_TO_ASCII_TABLE[ebcdic & 0xFF];
 	}
+	public static char ebcdicToAscii(int ebcdic) {
+		return EBCDIC_TO_ASCII_TABLE[ebcdic];
+	}
 	
 	public static byte[] encodeAddress(int position) {
         byte[] result = new byte[2];
