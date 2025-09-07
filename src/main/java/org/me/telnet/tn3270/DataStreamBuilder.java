@@ -13,7 +13,7 @@ public class DataStreamBuilder {
 	private ScreenBuffer buffer;
 	private boolean debug = false;
 	
-	public DataStreamBuilder2(ScreenBuffer buffer) {
+	public DataStreamBuilder(ScreenBuffer buffer) {
 		this.buffer = buffer;
 	}
 	
