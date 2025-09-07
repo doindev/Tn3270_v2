@@ -64,20 +64,20 @@ public class Tn3270 implements TelnetNotificationHandler {
                 // System.out.println("TN3270: Reader thread started");
                 while (connected && inputStream != null) {
                     // Use PeekableInputStream to process data stream
+                	System.out.println("TN3270: parser.parse(inputStream) called");
+                	Thread.sleep(1000); // Slight delay to allow data accumulation
                     parser.parse(inputStream);
-                    
-                    // Check if stream has ended
-                    byte[] peekByte = new byte[1];
-                    if (!inputStream.peek(peekByte, 0, 1)) {
-                        // System.out.println("TN3270: End of stream reached");
-                        break;
-                    }
+                    System.out.println("TN3270: parser.parse(inputStream) returned");
                 }
+                System.out.println("TN3270: Reader thread exiting loop");
             } catch (IOException e) {
+            	e.printStackTrace();
                 if (connected) {
                     // System.err.println("TN3270: IOException in reader thread");
                     e.printStackTrace();
                 }
+            } catch(Exception ee) {
+            	ee.printStackTrace();
             }
             // System.out.println("TN3270: Reader thread ended");
         });
