@@ -26,9 +26,10 @@ public class CircularBufferInputStream extends FilterInputStream implements Clos
 		}
 		
 		int space = buffer.getSpace();
-		if (space > 0) {
-			byte[] tempBuffer = new byte[space];
-			int bytesRead = in.read(tempBuffer, 0, space);
+		if (space > 0 && in.available() > 0) {
+			int bytesToRead = Math.min(space, in.available());
+			byte[] tempBuffer = new byte[bytesToRead];
+			int bytesRead = in.read(tempBuffer, 0, bytesToRead);
 			if (bytesRead > 0) {
 				buffer.add(tempBuffer, 0, bytesRead);
 			}
@@ -42,6 +43,15 @@ public class CircularBufferInputStream extends FilterInputStream implements Clos
 		
 		fillBuffer();
 		return buffer.getCurrentNumberOfBytes();
+	}
+	
+	@Override
+	public int available() throws IOException {
+		if (in == null) {
+			throw new IOException("Stream is closed");
+		}
+		// Return bytes available in buffer plus bytes available in underlying stream
+		return buffer.getCurrentNumberOfBytes() + in.available();
 	}
 	
 	@Override
@@ -65,7 +75,14 @@ public class CircularBufferInputStream extends FilterInputStream implements Clos
 			return buffer.read() & 0xFF;
 		}
 		
-		return -1;
+		// If no data available in buffer and underlying stream, return -1
+		if (in.available() == 0) {
+			return -1;
+		}
+		
+		// Try one more time with blocking read for single byte
+		int b = in.read();
+		return b;
 	}
 	
 	@Override
@@ -85,20 +102,34 @@ public class CircularBufferInputStream extends FilterInputStream implements Clos
 		
 		int totalBytesRead = 0;
 		
-		while (totalBytesRead < length) {
-			if (!buffer.hasBytes()) {
-				fillBuffer();
-			}
-			
-			if (!buffer.hasBytes()) {
-				break;
-			}
-			
+		// First, try to read from buffer
+		while (totalBytesRead < length && buffer.hasBytes()) {
 			int bytesToRead = Math.min(length - totalBytesRead, buffer.getCurrentNumberOfBytes());
 			buffer.read(targetBuffer, offset + totalBytesRead, bytesToRead);
 			totalBytesRead += bytesToRead;
 		}
 		
-		return totalBytesRead == 0 ? -1 : totalBytesRead;
+		// If we still need more bytes and some were already read, return what we have
+		if (totalBytesRead > 0) {
+			return totalBytesRead;
+		}
+		
+		// Try to fill buffer once more
+		fillBuffer();
+		
+		// Read any available bytes from buffer
+		if (buffer.hasBytes()) {
+			int bytesToRead = Math.min(length, buffer.getCurrentNumberOfBytes());
+			buffer.read(targetBuffer, offset, bytesToRead);
+			return bytesToRead;
+		}
+		
+		// If still no data in buffer, check if stream has data available
+		if (in.available() == 0) {
+			return -1;  // No data available
+		}
+		
+		// Do a single blocking read as last resort
+		return in.read(targetBuffer, offset, length);
 	}
 }
