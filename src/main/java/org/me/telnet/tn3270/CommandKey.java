@@ -40,7 +40,7 @@ public enum CommandKey {
         this.aidCode = aidCode;
     }
     
-    public byte getAidCode() {
+    public byte getValue() {
         return aidCode;
     }
 }
